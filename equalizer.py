@@ -1,7 +1,11 @@
-
+import json
+import warnings
 
 import numpy as np
 from skimage import (transform, io, exposure, util)
+import tifffile as TIFF
+
+import click
 
 
 def load_ROI_dict(fname):
@@ -32,8 +36,8 @@ def equalize_from_ROI(img, roi_bbox):
 def main(roifile, imgfile, outfile):
     """Use ROI to equalize and image. .
     """
-    roidict = load_ROI_dict(roifile)
-    roi_bbox = roi_dict.value()[0]
+    roi_dict = load_ROI_dict(roifile)
+    roi_bbox = roi_dict.values()[0]
 
     with open(imgfile, "r") as f:
         img = np.squeeze(io.imread(f))

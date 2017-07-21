@@ -230,7 +230,7 @@ def main(imgfile, outfile, rows, cols,
         outfile.write(s) 
     except RuntimeError:
         if display:
-            fig, ax = plot.subplots()
+            fig, ax = plt.subplots()
             ax.imshow(img)
             plt.show()
         

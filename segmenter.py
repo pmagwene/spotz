@@ -122,7 +122,10 @@ def filter_objects_by_grid(binary_img, grid_centers):
 @click.option("-o", "--outfile",
               type = click.Path(exists = False, dir_okay = False),
               default = None)
-def main(imgfile, gridfile, outfile, 
+@click.option( "--outdir",
+              type = click.Path(exists = True, file_okay = False, dir_okay = True),
+              default = None)
+def main(imgfile, gridfile, outfile, outdir, 
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
          clear_border = False, invert = False, autoexpose = False,
@@ -197,10 +200,15 @@ def main(imgfile, gridfile, outfile,
         spotzplot.draw_region_labels(regions, ax, color = "Tan")
         plt.show()
 
+    if outdir is None:
+        outdir = os.path.dirname(imgfile)
+
     if outfile is None:
         root, _ = os.path.splitext(os.path.basename(imgfile))
         outfile = "mask-" + root + ".npz"
-        sp.sparse.save_npz(outfile, sp.sparse.coo_matrix(labeled_img))
+
+    sp.sparse.save_npz(os.path.join(outdir, outfile),
+                       sp.sparse.coo_matrix(labeled_img))
         
     
 
