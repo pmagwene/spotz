@@ -69,6 +69,51 @@ def filter_objects_by_grid(binary_img, grid_centers):
 
     return filtered_img
             
+def segment_image(imgfile, grid_data, threshold_func,
+                  elemsize = None,
+                  min_hole = None, min_object = None,
+                  invert = False, autoexpose = False, clear_border = True)
+    img = io.imread(imgfile)
+    min_dim, max_dim = min(img.shape), max(img.shape)
+
+    if invert:
+        img = imgz.invert(img)
+    if autoexpose:
+        img = imgz.equalize_adaptive(img)
+
+    # Thresholding
+    binary_img = threshold_func(img)
+
+    # Morphological opening
+    binary_img = imgz.disk_opening(elemsize, binary_image)
+
+    #
+    # Filter holes, small objects, border
+    #
+    if min_hole is None:
+        min_hole = max(1, min_dim * 0.01)**2
+    if min_object is None:
+        min_object = max(1, min_dim * 0.01)**2
+
+    binary_img = pipe(binary_img,
+                      imgz.remove_small_holes(min_hole),
+                      imgz.remove_small_objects(min_object))
+
+    if clear_border:
+        binary_img = imgz.clear_border(binary_img)
+
+    labeled_img = filter_objects_by_grid(binary_img, grid_data["centers"])
+    regions = measure.regionprops(labeled_img)
+
+    return labeled_img, regions
+
+def save_sparse_mask(labeled_img, fname):
+    sp.sparse.save_npz(sp.sparse.coo_matrix(labeled_img))
+        
+    
+
+if __name__ == "__main__":
+    main()
         
 
 #-------------------------------------------------------------------------------    
