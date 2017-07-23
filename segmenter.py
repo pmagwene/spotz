@@ -43,9 +43,9 @@ def filter_objects_by_grid(binary_img, grid_centers):
     
     The criteria for "consistent" with grid geometry is whether the
     bounding box for an object of interest include the center points
-    of at least one object in the grid.
+    of at least one object in the labeled.
     """
-    labeled_img = morphology.label(binary_img)
+    grid_img = morphology.label(binary_img)
     regions = measure.regionprops(labeled_img)
 
     filtered_regions = []
@@ -110,11 +110,64 @@ def segment_image(imgfile, grid_data, threshold_func,
 def save_sparse_mask(labeled_img, fname):
     sp.sparse.save_npz(sp.sparse.coo_matrix(labeled_img))
         
-    
 
-if __name__ == "__main__":
-    main()
-        
+def process_image(imgfile, grid_data, 
+         threshold = "local", blocksize = None, sigma = None,
+         elemsize = None, min_hole = None, min_object = None, 
+         clear_border = False, invert = False, autoexpose = False):
+    
+    
+    img = io.imread(imgfile)
+    min_dim, max_dim = min(img.shape), max(img.shape)
+
+    if invert:
+        img = imgz.invert(img)
+    if autoexpose:
+        img = imgz.equalize_adaptive(img)
+
+    # Thresholding
+    #
+    threshold_dict = {"local":imgz.threshold_gaussian,
+                      "otsu":imgz.threshold_otsu,
+                      "li":imgz.threshold_li,
+                      "isodata":imgz.threshold_isodata}
+
+    threshold_func = threshold_dict[threshold]
+    if threshold == "local":
+        if blocksize is None:
+            blocksize = (2 * max_dim//200) + 1
+        if sigma is None:
+            sigma = 2 * blocksize
+        threshold_func = threshold_func(blocksize, sigma)
+
+    binary_img = threshold_func(img)
+    
+    # Morphological opening
+    #
+    if elemsize is None:
+        elemsize = int(round(min(7, min_dim/100. + 1)))
+    binary_img = imgz.disk_opening(elemsize, binary_img)
+
+    # Filter holes, small objects, border
+    #
+    if min_hole is None:
+        min_hole = int(max(1, min_dim * 0.005)**2)
+    if min_object is None:
+        min_object = int(max(1, min_dim * 0.005)**2)
+
+    binary_img = pipe(binary_img,
+                      imgz.remove_small_holes(min_hole),
+                      imgz.remove_small_objects(min_object))
+
+    if clear_border:
+        binary_img = imgz.clear_border(binary_img)
+
+    # Filter and relabel based on grid
+    #
+    labeled_img = filter_objects_by_grid(binary_img, grid_data["centers"])
+    regions = measure.regionprops(labeled_img)
+
+    return labeled_img, regions
 
 #-------------------------------------------------------------------------------    
 
@@ -170,7 +223,7 @@ if __name__ == "__main__":
 @click.option( "--outdir",
               type = click.Path(exists = True, file_okay = False, dir_okay = True),
               default = None)
-def main(imgfile, gridfile, outfile, outdir, 
+def main(imgfile, grid_data,   
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
          clear_border = False, invert = False, autoexpose = False,
