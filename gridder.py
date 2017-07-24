@@ -223,8 +223,8 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
     threshold_func = threshold_dict[threshold]
 
     for imgfile in imgfiles:
-        oimg = np.copy(img)
         img = np.squeeze(io.imread(imgfile))
+        oimg = np.copy(img)
         if invert:
             img = imgz.invert(img)
         if autoexpose:
