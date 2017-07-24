@@ -23,20 +23,19 @@ def extract_region(img, minr, minc, maxr, maxc):
 @click.command()
 @click.argument("roifile", 
                 type = click.Path(exists=True))
-@click.argument("input",  
-                type = click.Path(exists=True,
-                                  file_okay = True,
-                                  dir_okay = True))
+@click.argument("imgfiles",  
+                type = click.Path(exists=True, dir_okay = False),
+                nargs = -1)
 @click.argument("outdir",  
-                type = click.Path(file_okay = False,
+                type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
-@click.option("-e", "--extension",
-              help = "File extension type.",
-              default = "*.tif")
 
-def main(roifile, input, outdir, extension):
-    """Extract regions of interest from every image file in specified input directory,
-    writing sub-images to output directory.
+def main(roifile, imgfiles, outdir):
+    """Extract regions of interest (ROI) from one or more image files.
+
+    ROIs are defined in a JSON formatted input file. Sub-images are
+    written to the user provided sub-directory.
+
     """
     # get ROIs from infile
     with open(roifile, "r") as f:
@@ -47,26 +46,14 @@ def main(roifile, input, outdir, extension):
     for name in region_names:
         os.makedirs(os.path.join(outdir, name))
 
-    if os.path.isdir(input):
-        infiles = glob.glob(os.path.join(input,extension))
-        for fname in infiles:
-            basename = os.path.basename(fname)
-            img = np.squeeze(io.imread(fname))
-            for (name, bbox) in roidict.iteritems():
-                subimg = extract_region(img, *bbox)
-                outfile = "{}-{}".format(name, basename)
-                outname = os.path.join(outdir, name, outfile)
-                TIFF.imsave(outname, subimg)
-    else:
-        basename = os.path.basename(input)
-        img = np.squeeze(io.imread(input))
+    for imgfile in imgfiles:
+        img = np.squeeze(io.imread(imgfile))
+        root = os.path.basename(fname)
         for (name, bbox) in roidict.iteritems():
             subimg = extract_region(img, *bbox)
-            outfile = "{}-{}".format(name, basename)
-            outname = os.path.join(outdir, name, outfile)
-            TIFF.imsave(outname, subimg)
+            outfile = os.path.join(outdir, name, "{}-{}".format(name, root))
+            TIFF.imsave(outfile, subimg)
         
-
 
 if __name__ == "__main__":
     main()

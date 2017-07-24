@@ -83,7 +83,24 @@ class SelectorCollection(object):
             xmin, xmax, ymin, ymax = self.selectors[self.current].extents
             self.selectors[self.current].extents = (xmin, xmax,
                                                     ymin + 5, ymax + 5)
+        elif event.key == "shift+left":
+            xmin, xmax, ymin, ymax = self.selectors[self.current].extents
+            self.selectors[self.current].extents = (xmin, xmax - 5,
+                                                    ymin, ymax)
+        elif event.key == "shift+right":
+            xmin, xmax, ymin, ymax = self.selectors[self.current].extents
+            self.selectors[self.current].extents = (xmin, xmax + 5,
+                                                    ymin, ymax)
+        elif event.key == "shift+up":
+            xmin, xmax, ymin, ymax = self.selectors[self.current].extents
+            self.selectors[self.current].extents = (xmin, xmax,
+                                                    ymin, ymax - 5)
+        elif event.key == "shift+down":
+            xmin, xmax, ymin, ymax = self.selectors[self.current].extents
+            self.selectors[self.current].extents = (xmin, xmax,
+                                                    ymin, ymax + 5)
         else:
+            # print(event.key)
             return
         [i.update() for i in self.selectors]
 
@@ -152,37 +169,40 @@ class SelectorCollection(object):
         plt.close("all")
 
     
-
+#-------------------------------------------------------------------------------    
 
 @click.command()
 @click.option("-r", "--rows",
               help = "Number of rows of ROIs",
-              type = click.IntRange(1,4),
+              type = click.IntRange(1,3),
               default = 2)
 @click.option("-c", "--cols",
               help = "Number of columns of ROIs",
-              type = click.IntRange(1,4),
+              type = click.IntRange(1,3),
               default = 2)
 @click.option("--normalized/--unnormalized", default=True,
               help = "Make ROIs uniform in size.")
-@click.argument("image_file",  
+@click.argument("imgfile",  
                 type = click.Path(exists=True))
 @click.argument("outfile",  
                 type = click.File("w"),
                 default = "-")
-def main(image_file, outfile, rows, cols, normalized):
+def main(imgfile, outfile, rows, cols, normalized):
     """Define regions of interest (ROIs) on an image, and return bounding boxes.
+    
+    Use number keys, 1 - 9, to select ROIs. ROI position can be
+    adjusted with mouse or arrow keys. ROI size can be adjusted with
+    mouse or shift+arrow keys.
 
     Assumes a grid of ROIs, but no constraints on ROI overlap.
     
     Bounding boxes are (minrow, mincol, maxrow, maxcol) to be
-    consistent with skimage.
-    
-    Returned bounding boxes are returned in YAML format for easy
-    parsing. See extractROI for a program that operates on ROIs.
+    consistent with skimage. Returned bounding boxes are returned in
+    YAML format for easy parsing. See extractROI for a program that
+    operates on ROIs.
 
     """
-    img = np.squeeze(io.imread(image_file))    
+    img = np.squeeze(io.imread(imgfile))    
     fig, main_ax = plt.subplots()  
     plt.subplots_adjust(bottom = 0.2)      
     main_ax.imshow(img, cmap="gray") 

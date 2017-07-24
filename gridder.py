@@ -139,8 +139,6 @@ def find_grid(binary_img, nrows, ncols,
                 min_gap = min_gap, min_n = min_n)
 
 
-
-
 #-------------------------------------------------------------------------------    
 
 @click.command()
@@ -185,12 +183,18 @@ def find_grid(binary_img, nrows, ncols,
               help = "Whether to apply exposure equalization before analyzing",
               default = False,
               show_default = True)
-@click.argument("imgfile",
-                type = click.Path(exists = True))
-@click.argument("outfile",
-                type = click.File("w"),
-                default = "-")
-def main(imgfile, outfile, rows, cols,
+@click.option("-p", "--prefix",
+              help = "Prefix for output files",
+              type = str,
+              default = "GRID",
+              show_default = True)
+@click.argument("imgfiles",
+                type = click.Path(exists = True),
+                nargs = -1)
+@click.argument("outdir", 
+                type = click.Path(exists = True, file_okay = False,
+                                  dir_okay = True))
+def main(imgfiles, outdir, rows, cols, prefix = "grid",
          threshold = "otsu", elemsize = None, min_gap = None, min_n = None,
          display = False, invert = False, autoexpose = False):
     """Infer the coordinates of a gridded set of objects in an image.
@@ -210,36 +214,35 @@ def main(imgfile, outfile, rows, cols,
     interest are dark objects on a light background (e.g. transparency
     scanning).
     """
-    
-    img = io.imread(imgfile)
-    if invert:
-        img = imgz.invert(img)
-    if autoexpose:
-        img = imgz.equalize_adaptive(img)
 
     threshold_dict = {"otsu":imgz.threshold_otsu,
                       "li":imgz.threshold_li,
                       "isodata":imgz.threshold_isodata}
-
     threshold_func = threshold_dict[threshold]
-    binary_img, selem_size = threshold_and_open(img, threshold_func)
 
-    try:
-        results = find_grid(binary_img, rows, cols, min_gap, min_n)
-        s = json.dumps(results, indent = 1)
-        outfile.write(s) 
-    except RuntimeError:
+    for imgfile in imgfiles:
+        img = np.squeeze(io.imread(imgfile))
+        if invert:
+            img = imgz.invert(img)
+        if autoexpose:
+            img = imgz.equalize_adaptive(img)
+
+        binary_img, selem_size = threshold_and_open(img, threshold_func)
+
+        grid_data = find_grid(binary_img, rows, cols, min_gap, min_n)
+        s = json.dumps(grid_data, indent = 1)
+
+        root, _ = os.path.splitext(os.path.basename(imgfile))
+        outfile = os.path.join(outdir, "{}-{}.json".format(prefix, root))
+        with open(outfile, "w") as f:
+            f.write(s)
+        
         if display:
             fig, ax = plt.subplots()
-            ax.imshow(img)
+            ax.imshow(img, cmap = "gray")
+            ax.imshow(binary_img, cmap = "Reds", alpha = 0.45)
+            spotzplot.draw_bboxes(results["bboxes"], ax)
             plt.show()
-        
-
-    if display:
-        fig, ax = plt.subplots()
-        ax.imshow(spotzplot.colorize_grayscale(img, binary_img, clr=[1,0,0,0.25]))
-        spotzplot.draw_bboxes(results["bboxes"], ax)
-        plt.show()
     
 
 if __name__ == "__main__":

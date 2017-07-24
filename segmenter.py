@@ -97,9 +97,9 @@ def segment_image(img, grid_data,
     threshold_func = threshold_dict[threshold]
     if threshold == "local":
         if blocksize is None:
-            blocksize = (2 * max_dim//200) + 1
+            blocksize = 3
         if sigma is None:
-            sigma = 2 * blocksize
+            sigma = 3
         threshold_func = threshold_func(blocksize, sigma)
 
     binary_img = threshold_func(img)
@@ -107,13 +107,13 @@ def segment_image(img, grid_data,
     # Morphological opening
     #
     if elemsize is None:
-        elemsize = int(round(min(7, min_dim/100. + 1)))
+        elemsize = int(round(min(3, min_dim/100. + 1)))
     binary_img = imgz.disk_opening(elemsize, binary_img)
 
     # Filter holes, small objects, border
     #
     if min_hole is None:
-        min_hole = int(max(1, min_dim * 0.005)**2)
+        min_hole = int(max(1, min_dim * 0.01)**2)
     if min_object is None:
         min_object = int(max(1, min_dim * 0.005)**2)
 
@@ -175,24 +175,41 @@ def segment_image(img, grid_data,
               help = "Whether to display segmented objects.",
               default = False,
               show_default = True)
+@click.option("-", "--prefix",
+              help = "Prefix for output files",
+              type = str,
+              default = "MASK",
+              show_default = True)
 @click.argument("imgfiles",
                 nargs = -1,
                 type = click.Path(exists = True, dir_okay = False))
 @click.argument("gridfile",
                 type = click.Path(exists = True, dir_okay = False))
 @click.argument("outdir", 
-              type = click.Path(exists = True,
-                                file_okay = False,
-                                dir_okay = True))
-def main(imgfiles, gridfile, outdir,
-         outprefix = "mask",
+                type = click.Path(exists = True, file_okay = False,
+                                  dir_okay = True))
+def main(imgfiles, gridfile, outdir, prefix,
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
          clear_border = False, invert = False, autoexpose = False,
          display = False):
-    """Segment microbial colonies in an image of a pinned plate. 
+    """Segment microbial colonies in an image of a pinned plate.
+
+    Input is one or more image files, a JSON "grid file" created by
+    the gridder program, and the name of the directory to write the
+    segmentation mask to.
     
     Segmentation involves:
+    - Inversion (required if dark colonies on light) and auto exposure (optional)
+    - Thresholding
+    - Morphological opening
+    - Filtering of small objects and holes
+    - Clearing the border region of objects (optional)
+    - Filtering objects according to whether they match the grid geometry
+
+    Matches to grid geometry are defined in terms of whether an
+    object's bounding box includings the center of one of the grid
+    elements.
 
     """
 
@@ -208,9 +225,8 @@ def main(imgfiles, gridfile, outdir,
                                     invert = invert, autoexpose = autoexpose)
     
         root, _ = os.path.splitext(os.path.basename(imgfile))
-        outfile = "{}-{}.npz".format(outprefix, root)
-        sp.sparse.save_npz(os.path.join(outdir, outfile),
-                           sp.sparse.coo_matrix(labeled_img))
+        outfile = os.path.join(outdir, "{}-{}.npz".format(prefix, root))
+        sp.sparse.save_npz(outfile, sp.sparse.coo_matrix(labeled_img))
 
         if display:
             fig, ax = plt.subplots()
