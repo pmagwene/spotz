@@ -44,11 +44,13 @@ def main(roifile, imgfiles, outdir):
     # Create output subdirectories
     region_names = roidict.keys()
     for name in region_names:
-        os.makedirs(os.path.join(outdir, name))
+        dirname = os.path.join(outdir, name)
+        if not os.path.exists(dirname):
+            os.makedirs(os.path.join(outdir, name))
 
     for imgfile in imgfiles:
         img = np.squeeze(io.imread(imgfile))
-        root = os.path.basename(fname)
+        root = os.path.basename(imgfile)
         for (name, bbox) in roidict.iteritems():
             subimg = extract_region(img, *bbox)
             outfile = os.path.join(outdir, name, "{}-{}".format(name, root))

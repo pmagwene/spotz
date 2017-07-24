@@ -1,3 +1,5 @@
+import sys
+import os.path
 import json
 from itertools import product
 
@@ -229,7 +231,11 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
 
         binary_img, selem_size = threshold_and_open(img, threshold_func)
 
-        grid_data = find_grid(binary_img, rows, cols, min_gap, min_n)
+        try:
+            grid_data = find_grid(binary_img, rows, cols, min_gap, min_n)
+        except RuntimeError:
+            print("No grid found in {}".format(imgfile))
+            sys.exit(1)
         s = json.dumps(grid_data, indent = 1)
 
         root, _ = os.path.splitext(os.path.basename(imgfile))
@@ -241,7 +247,7 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
             fig, ax = plt.subplots()
             ax.imshow(img, cmap = "gray")
             ax.imshow(binary_img, cmap = "Reds", alpha = 0.45)
-            spotzplot.draw_bboxes(results["bboxes"], ax)
+            spotzplot.draw_bboxes(grid_data["bboxes"], ax)
             plt.show()
     
 

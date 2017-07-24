@@ -38,6 +38,19 @@ def region_encloses_grid_center(region, grid_centers):
         return False, None
 
 
+def keep_regions(labeled_img, labels):
+    masked_img = np.in1d(labeled_img.ravel(), np.asarray(labels))
+    masked_img.shape = labeled_img.shape
+    filtered_img = np.where(masked_img, labeled_img, np.zeros_like(labeled_img))
+    return filtered_img
+
+def remove_regions(labeled_img, labels):
+    masked_img = np.logical_not(np.in1d(labeled_img.ravel(), np.asarray(labels)))
+    masked_img.shape = labeled_img.shape
+    filtered_img = np.where(masked_img, labeled_img, np.zeros_like(labeled_img))
+    return filtered_img
+    
+
 def filter_objects_by_grid(binary_img, grid_centers):
     """Filter objects in binary image whether they are consistent with grid geometry.
     
@@ -56,9 +69,11 @@ def filter_objects_by_grid(binary_img, grid_centers):
             filtered_regions.append(region)
             grid_positions.append(min(grid_hit))
 
-    masked_img = np.in1d(labeled_img.ravel(), [r.label for r in filtered_regions])
-    masked_img.shape = labeled_img.shape
-    filtered_img = np.where(masked_img, labeled_img, np.zeros_like(labeled_img))
+    filtered_img = keep_regions(labeled_img, [r.label for r in filtered_regions])
+
+    # masked_img = np.in1d(labeled_img.ravel(), [r.label for r in filtered_regions])
+    # masked_img.shape = labeled_img.shape
+    # filtered_img = np.where(masked_img, labeled_img, np.zeros_like(labeled_img))
 
     # filtered_img = np.where(np.isin(labeled_img, [r.label for r in filtered_regions]),
     #                         labeled_img,
@@ -68,6 +83,11 @@ def filter_objects_by_grid(binary_img, grid_centers):
          filtered_img[region.coords[:, 0], region.coords[:, 1]] = grid_positions[i] + 1
 
     return filtered_img
+
+def filter_by_eccentricity(labeled_img, limit):
+    regions = measure.regionprops(labeled_img)
+    filtered_regions = [region for region in regions if region.eccentricity < limit]
+    return keep_regions(labeled_img, [region.label for region in filtered_regions])
             
 
 def save_sparse_mask(labeled_img, fname):
@@ -75,9 +95,10 @@ def save_sparse_mask(labeled_img, fname):
         
 
 def segment_image(img, grid_data, 
-         threshold = "local", blocksize = None, sigma = None,
-         elemsize = None, min_hole = None, min_object = None, 
-         clear_border = False, invert = False, autoexpose = False):
+        threshold = "local", blocksize = None, sigma = None,
+        elemsize = None, min_hole = None, min_object = None,
+        max_eccentricity = 0.75,
+        clear_border = False, invert = False, autoexpose = False):
     
     
     min_dim, max_dim = min(img.shape), max(img.shape)
@@ -113,13 +134,13 @@ def segment_image(img, grid_data,
     # Filter holes, small objects, border
     #
     if min_hole is None:
-        min_hole = int(max(1, min_dim * 0.01)**2)
+        min_hole = int(max(1, min_dim * 0.02)**2)
     if min_object is None:
         min_object = int(max(1, min_dim * 0.005)**2)
 
     binary_img = pipe(binary_img,
-                      imgz.remove_small_holes(min_hole),
-                      imgz.remove_small_objects(min_object))
+                      imgz.remove_small_objects(min_object),
+                      imgz.remove_small_holes(min_hole))
 
     if clear_border:
         binary_img = imgz.clear_border(binary_img)
@@ -127,9 +148,14 @@ def segment_image(img, grid_data,
     # Filter and relabel based on grid
     #
     labeled_img = filter_objects_by_grid(binary_img, grid_data["centers"])
-    regions = measure.regionprops(labeled_img)
 
-    return labeled_img, regions
+    # Filter by final region properties
+    # 
+    labeled_img = filter_by_eccentricity(labeled_img, max_eccentricity)
+    
+    return labeled_img, measure.regionprops(labeled_img)
+
+
 
 #-------------------------------------------------------------------------------    
 
@@ -159,6 +185,11 @@ def segment_image(img, grid_data,
               help = "Minimum object size (in pixels).",
               type = int,
               default = None)
+@click.option("--max-eccentricity",
+              help = "Maximum eccentricity of objects.",
+              type = float,
+              default = 0.65,
+              show_default = True)
 @click.option("--clear-border/--keep-border",
               help = "Remove objects that touch the border of the image",
               default = True,
@@ -175,7 +206,7 @@ def segment_image(img, grid_data,
               help = "Whether to display segmented objects.",
               default = False,
               show_default = True)
-@click.option("-", "--prefix",
+@click.option("-p", "--prefix",
               help = "Prefix for output files",
               type = str,
               default = "MASK",
@@ -191,6 +222,7 @@ def segment_image(img, grid_data,
 def main(imgfiles, gridfile, outdir, prefix,
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
+         max_eccentricity = 0.65,
          clear_border = False, invert = False, autoexpose = False,
          display = False):
     """Segment microbial colonies in an image of a pinned plate.
@@ -221,6 +253,7 @@ def main(imgfiles, gridfile, outdir, prefix,
                                     threshold = threshold, blocksize = blocksize,
                                     sigma = sigma, elemsize = elemsize,
                                     min_hole = min_hole, min_object = min_object,
+                                    max_eccentricity = max_eccentricity,
                                     clear_border = clear_border,
                                     invert = invert, autoexpose = autoexpose)
     
@@ -229,10 +262,7 @@ def main(imgfiles, gridfile, outdir, prefix,
         sp.sparse.save_npz(outfile, sp.sparse.coo_matrix(labeled_img))
 
         if display:
-            fig, ax = plt.subplots()
-            ax.imshow(img, cmap = "gray")
-            ax.imshow(labeled_img > 0, cmap = "Reds", alpha = 0.45)
-            spotzplot.draw_region_labels(regions, ax, color = "Tan")
+            fig, ax = spotzplot.draw_image_and_labels(img, labeled_img)
             plt.show()
 
     

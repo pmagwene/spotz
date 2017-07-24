@@ -29,12 +29,14 @@ def equalize_from_ROI(img, roi_bbox):
 @click.argument("roifile", 
     type = click.Path(exists=True))
 @click.argument("imgfiles",  
-                type = click.Path(exists=True, dir_okay = False),
+                type = click.Path(exists=True,
+                                  dir_okay = False),
                 nargs = -1)
 @click.argument("outdir",  
-                type = click.Path(exists = True, file_okay = False,
+                type = click.Path(exists = True,
+                                  file_okay = False,
                                   dir_okay = True))
-@click.option("--prefix",
+@click.option("-p", "--prefix",
               help = "Prefix to prepend to equalized file names.",
               default = "EQLZD")
 def main(roifile, imgfiles, outdir, prefix):
@@ -49,7 +51,7 @@ def main(roifile, imgfiles, outdir, prefix):
         img = equalize_from_ROI(img, roi_bbox)
 
         root = os.path.basename(imgfile)
-        outfile = os.path.joint(outdir, "{}-{}".format(prefix, root))
+        outfile = os.path.join(outdir, "{}-{}".format(prefix, root))
         TIFF.imsave(outfile, img)
     
 

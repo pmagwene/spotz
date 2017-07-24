@@ -1,3 +1,5 @@
+import os, os.path
+
 import numpy as np
 import scipy as sp
 import pandas as pd
@@ -26,7 +28,7 @@ def region_stats(region, nrows, ncols):
 
 def colony_stats(regions, nrows, ncols):
     npos = nrows * ncols
-    posdict = dict(zip(range(npos),[None]*npos))
+    posdict = dict(zip(range(1, npos+1),[None]*npos))
     for region in regions:
         posdict[region.label] =  region_stats(region, nrows, ncols)
 
@@ -46,13 +48,27 @@ def colony_stats(regions, nrows, ncols):
 #-------------------------------------------------------------------------------    
 
 @click.command()
-@click.argument("imgfile",
-                type = click.Path(exists = True))
-@click.argument("maskfile",
-                type = click.Path(exists = True))
-@click.argument("outfile",
-                type = click.File("w"),
-                default = "-")
+@click.argument("imgfiles",
+                type = click.Path(exists = True, dir_okay = False),
+                nargs = -1)
+@click.argument("maskdir",
+                type = click.Path(exists = True,
+                                  file_okay = False,
+                                  dir_okay = True))
+@click.argument("outdir",  
+                type = click.Path(exists = True,
+                                  file_okay = False,
+                                  dir_okay = True))
+@click.option("-p", "--prefix",
+              help = "Prefix for output CSV files",
+              type = str,
+              default = "STATS",
+              show_default = True)
+@click.option("-m", "--mask-prefix",
+              help = "Prefix for Mask files.",
+              type = str,
+              default = "MASK",
+              show_default = True)
 @click.option("-r", "--rows",
               help = "Number of rows in grid",
               type = int,
@@ -63,12 +79,23 @@ def colony_stats(regions, nrows, ncols):
               type = int,
               default = 12,
               show_default = True)
-def main(imgfile, maskfile, outfile, rows, cols):
-    img = io.imread(imgfile)
-    labeled_img = sp.sparse.load_npz(maskfile).toarray()
-    regions = measure.regionprops(labeled_img, intensity_image = img)
-    df = colony_stats(regions, rows, cols)
-    df.to_csv(outfile)
+def main(imgfiles, maskdir, outdir, prefix, mask_prefix, rows, cols):
+    """Extract statistics from labeled objects in an image.
+    """
+    for imgfile in imgfiles:
+        img = np.squeeze(io.imread(imgfile))
+        basename = os.path.basename(imgfile)
+        root, _ = os.path.splitext(basename)
+        outfile = os.path.join(outdir, "{}-{}.csv".format(prefix, root))
+        mask_file = os.path.join(maskdir, "{}-{}.npz".format(mask_prefix, root))
+
+        if not os.path.exists(mask_file):
+            continue
+
+        labeled_img = sp.sparse.load_npz(mask_file).toarray()
+        regions = measure.regionprops(labeled_img, intensity_image = img)
+        stats_df = colony_stats(regions, rows, cols)
+        stats_df.to_csv(outfile, index = False)
 
     
 if __name__ == "__main__":

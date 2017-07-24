@@ -23,6 +23,7 @@ def draw_bboxes(bboxes, ax=None, color='red', linewidth=1, **kw):
     boxcoll.set_linewidth(linewidth)
     ax.collections = []
     ax.add_collection(boxcoll)
+    return ax
 
 def draw_region_labels(regions, ax=None, fontsize=7, **kw):
     if ax is None:
@@ -33,8 +34,17 @@ def draw_region_labels(regions, ax=None, fontsize=7, **kw):
         t = Text(cent[1], cent[0], str(region.label), fontsize=fontsize, **kw)
         t.set_clip_on(True)
         ax.add_artist(t)
+    return ax
 
 def colorize_grayscale(img, mask, clr=[1, 0, 0, 0.65]):
     clrimg = color.gray2rgb(util.img_as_float(img), alpha=True)
     clrimg[mask, :] *= clr
     return clrimg
+
+def draw_image_and_labels(img, labeled_img, mask_cmap = "Reds", alpha = 0.35):
+    regions = measure.regionprops(labeled_img)
+    fig, ax = plt.subplots()
+    ax.imshow(img, cmap = "gray")
+    ax.imshow(labeled_img > 0, cmap = mask_cmap, alpha = alpha)
+    draw_region_labels(regions, ax, color = "Tan")
+    return fig, ax
