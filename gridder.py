@@ -223,6 +223,7 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
     threshold_func = threshold_dict[threshold]
 
     for imgfile in imgfiles:
+        oimg = np.copy(img)
         img = np.squeeze(io.imread(imgfile))
         if invert:
             img = imgz.invert(img)
@@ -245,7 +246,7 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
         
         if display:
             fig, ax = plt.subplots()
-            ax.imshow(img, cmap = "gray")
+            ax.imshow(oimg, cmap = "gray")
             ax.imshow(binary_img, cmap = "Reds", alpha = 0.45)
             spotzplot.draw_bboxes(grid_data["bboxes"], ax)
             plt.show()
