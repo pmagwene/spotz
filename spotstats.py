@@ -21,9 +21,13 @@ def region_stats(region, nrows, ncols):
     eccentricity = region.eccentricity
     equiv_diameter = region.equivalent_diameter
     mean_intensity = region.mean_intensity
+    solidity = region.solidity
+    convex_area = region.convex_area
+    bbox_minr, bbox_minc, bbox_maxr, bbox_maxc = region.bbox
     return [position, row, col, centroid_r, centroid_c, area, perimeter, 
             major_axis_length, minor_axis_length, eccentricity, equiv_diameter, 
-            mean_intensity]
+            mean_intensity, solidity, convex_area,
+            bbox_minr, bbox_minc, bbox_maxr, bbox_maxc]
 
 
 def colony_stats(regions, nrows, ncols):
@@ -34,7 +38,9 @@ def colony_stats(regions, nrows, ncols):
 
     header = ["label", "row", "col", "centroid_r", "centroid_c", "area", 
               "perimeter", "major_axis_length", "minor_axis_length", 
-              "eccentricity", "equiv_diameter", "mean_intensity"]
+              "eccentricity", "equiv_diameter", "mean_intensity",
+              "solidity", "convex_area",
+              "bbox_minr", "bbox_minc", "bbox_maxr", "bbox_maxc"]
     tbl = []
     for i in range(1, npos+1):
         if posdict[i] is None:

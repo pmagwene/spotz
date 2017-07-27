@@ -20,6 +20,38 @@ import imgz, spotzplot
 #-------------------------------------------------------------------------------    
     
 
+def middle_region(img, hfrac = 0.1):
+    nrows, ncols = img.shape
+    r_hwidth = int(round(nrows * hfrac))
+    c_hwidth = int(round(ncols * hfrac))
+    middle_img = imgz.image_center(r_hwidth, c_hwidth, img)
+    return middle_img
+
+
+def threshold_from_blank(blankimg, perc = 99.9, invert = False):
+    if invert:
+        blankimg = imgz.invert(blankimg)
+    return np.percentile(blankimg.ravel(), perc)
+
+
+def threshold_from_blank_bbox(img, bbox, perc = 99.99, invert = False):
+    bbox_img = imgz.extract_bbox(bbox, img)
+    return estimate_threshold_from_blank(bbox_img, perc = perc, invert = invert)
+
+
+def bbox_has_object(bbox, binary_img, min_size = 1):
+    bbox_img = imgz.extract_bbox(bbox, binary_img)
+    bbox_img = morphology.remove_small_objects(bbox_img, min_size = min_size)
+    if np.any(bbox_img):
+        return True
+    else:
+        return False
+    
+    
+    
+    
+
+
 def bbox_to_poly(bbox):
     minr, minc, maxr, maxc = bbox
     pt1 = (minr, minc)
@@ -51,17 +83,27 @@ def remove_regions(labeled_img, labels):
     return filtered_img
     
 
-def filter_objects_by_grid(binary_img, grid_centers):
+def filter_objects_by_grid(grid_data, binary_img):
     """Filter objects in binary image whether they are consistent with grid geometry.
     
     The criteria for "consistent" with grid geometry is whether the
     bounding box for an object of interest include the center points
     of at least one object in the labeled.
     """
+
+    # remove any pixels not within the grid boundaries
+    #
+    in_grid = np.zeros_like(binary_img, dtype = np.bool)
+    minr, minc, maxr, maxc = grid_data["total_bbox"]
+    in_grid[minr:maxr, minc:maxc] = True
+    binary_img = np.where(in_grid, binary_img, np.zeros_like(binary_img))
+
     labeled_img = morphology.label(binary_img)
     regions = measure.regionprops(labeled_img)
 
+    grid_centers = grid_data["centers"]
     filtered_regions = []
+
     grid_positions = []
     for region in regions:
         in_grid, grid_hit = region_encloses_grid_center(region, grid_centers)
@@ -84,7 +126,7 @@ def filter_objects_by_grid(binary_img, grid_centers):
 
     return filtered_img
 
-def filter_by_eccentricity(labeled_img, limit):
+def filter_by_eccentricity(limit, labeled_img):
     regions = measure.regionprops(labeled_img)
     filtered_regions = [region for region in regions if region.eccentricity < limit]
     return keep_regions(labeled_img, [region.label for region in filtered_regions])
@@ -92,7 +134,64 @@ def filter_by_eccentricity(labeled_img, limit):
 
 def save_sparse_mask(labeled_img, fname):
     sp.sparse.save_npz(sp.sparse.coo_matrix(labeled_img))
+
+def segment_grid_unit(unit_edges, unit_seed):
+    n = np.max(unit_seed)
+    nrows, ncols = unit_edges.shape
+    unit_seed[1, 1] = n + 1
+    unit_seed[1, ncols - 2] = n + 2
+    unit_seed[nrows - 2, ncols - 2] = n + 3
+    unit_seed[nrows - 2, 1] = n + 4 
+    wshed = morphology.watershed(unit_edges, unit_seed)
+    wshed[wshed != n] = 0
+    return wshed
+    
+
+def segment_by_watershed(img, blank_bbox, grid_data,
+                         opening = None,
+                         min_object = 25,
+                         threshold_perc = 99.9,
+                         invert = False, autoexpose = False):
+    if invert:
+        img = imgz.invert(img)
+    if autoexpose:
+        img = imgz.equalize_adaptive(img)
+
+    if opening is not None:
+        img = morphology.opening(img, selem = morphology.disk(opening))
+
+    threshold = threshold_from_blank_bbox(img, blank_bbox, perc = threshold_perc)
+    binary_img = pipe(img > threshold, imgz.remove_small_objects(min_object))
+
+
+    edges = filters.scharr(img)
+    seeds = np.zeros_like(img, dtype = int)
+
+    wshed = np.zeros_like(img, dtype = np.uint32)
+    for i, ctr in enumerate(grid_data["centers"]):
+        bbox = grid_data["bboxes"][i]
+        minr, minc, maxr, maxc = bbox
+        if binary_img[ctr]:
+            seeds[ctr] = i + 1
+            unit_edges = edges[minr:maxr, minc:maxc]
+            unit_seed = seeds[minr:maxr, minc:maxc]
+            wshed[minr:maxr, minc:maxc] = segment_grid_unit(unit_edges, unit_seed)
         
+        # if np.any(binary_img[minr:maxr, minc:maxc]):
+        #     seeds[ctr] = i + 1
+
+    return wshed
+
+    ngrids = len(grid_data["bboxes"])
+    gminr, gminc, gmaxr, gmaxc = grid_data["total_bbox"]
+    seeds[gminr + 1, gminc + 1] = ngrids + 1
+    seeds[gmaxr - 1, gmaxc - 1] = ngrids + 2
+    
+    
+    grid_mask = imgz.bbox_mask(grid_data["total_bbox"], img)
+    wshed = morphology.watershed(edges, seeds, mask = grid_mask)
+    return wshed
+
 
 def segment_image(img, grid_data, 
         threshold = "local", blocksize = None, sigma = None,
@@ -120,10 +219,15 @@ def segment_image(img, grid_data,
         if blocksize is None:
             blocksize = 3
         if sigma is None:
-            sigma = 3
+            sigma = 4
         threshold_func = threshold_func(blocksize, sigma)
 
-    binary_img = threshold_func(img)
+    # binary_img = threshold_func(img)
+
+    binary_local = imgz.threshold_gaussian(3, 3, img)
+    binary_otsu = imgz.threshold_otsu(img)
+    binary_img = np.logical_and(binary_local, binary_otsu) 
+
     
     # Morphological opening
     #
@@ -147,13 +251,13 @@ def segment_image(img, grid_data,
 
     # Filter and relabel based on grid
     #
-    labeled_img = filter_objects_by_grid(binary_img, grid_data["centers"])
+    labeled_img = filter_objects_by_grid(grid_data, binary_img)
 
     # Filter by final region properties
     # 
-    labeled_img = filter_by_eccentricity(labeled_img, max_eccentricity)
+    #labeled_img = filter_by_eccentricity(max_eccentricity, labeled_img)
     
-    return labeled_img, measure.regionprops(labeled_img)
+    return labeled_img
 
 
 
@@ -219,6 +323,7 @@ def segment_image(img, grid_data,
 @click.argument("outdir", 
                 type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
+
 def main(imgfiles, gridfile, outdir, prefix,
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
@@ -249,7 +354,7 @@ def main(imgfiles, gridfile, outdir, prefix,
 
     for imgfile in imgfiles:
         img = np.squeeze(io.imread(imgfile))
-        labeled_img, regions = segment_image(img, grid_data, 
+        labeled_img = segment_image(img, grid_data, 
                                     threshold = threshold, blocksize = blocksize,
                                     sigma = sigma, elemsize = elemsize,
                                     min_hole = min_hole, min_object = min_object,

@@ -137,8 +137,13 @@ def find_grid(binary_img, nrows, ncols,
         min_n = int(0.5 * min(nrows, ncols))
 
     bboxes, centers = find_grid_bboxes(binary_img, min_gap, min_n)
+    total_bbox = (bboxes[0][0], bboxes[0][1], bboxes[-1][2], bboxes[-1][3])
+    unit_height = bboxes[0][2] - bboxes[0][0]
+    unit_width = bboxes[0][3] - bboxes[0][1]
     return dict(bboxes = bboxes, centers = centers,
-                min_gap = min_gap, min_n = min_n)
+                min_gap = min_gap, min_n = min_n, total_bbox = total_bbox,
+                unit_height = unit_height, unit_width = unit_width,
+                unit_area = unit_height * unit_width)
 
 
 #-------------------------------------------------------------------------------    

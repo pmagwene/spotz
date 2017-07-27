@@ -8,7 +8,7 @@ from matplotlib.widgets import RectangleSelector, Button
 from matplotlib import pyplot as plt
 
 from skimage import (morphology, segmentation, exposure, feature, filters,
-                     measure, transform, util, io)
+                     measure, transform, util, io, color)
 
 from toolz.curried import *
 
@@ -67,15 +67,30 @@ invert = util.invert
 equalize_adaptive = exposure.equalize_adapthist
 equalize_hist = exposure.equalize_hist
 clear_border = segmentation.clear_border
-disk_selem = morphology.disk
+disk = disk_selem = morphology.disk
 binary_opening = morphology.binary_opening
+binary_closing = morphology.binary_closing
 binary_erosion = morphology.binary_erosion
+binary_dilation = morphology.binary_dilation
+opening = morphology.opening
+closing = morphology.closing
+erosion = morphology.erosion
+dilation = morphology.dilation
+thin = morphology.thin
+watershed = morphology.watershed
+
 
 @curry
 def rescale(scale, img):
     return transform.rescale(img, scale,
                              mode = "constant",
                              preserve_range = True).astype(img.dtype)
+
+def threshold_mean(img):
+    return img > filters.threshold_mean(img)
+
+def threshold_triangle(img):
+    return img > filters.threshold_triangle(img)
 
 def threshold_otsu(img):
     return img > filters.threshold_otsu(img)
@@ -105,6 +120,46 @@ def disk_opening(radius, img):
     return morphology.binary_opening(img, selem = morphology.disk(radius))
 
 @curry
+def disk_closing(radius, img):
+    return morphology.binary_closing(img, selem = morphology.disk(radius))
+
+@curry
 def disk_erosion(radius, img):
     return morphology.binary_erosion(img, selem = morphology.disk(radius))
 
+
+@curry
+def imshowg(img):
+    vmin, vmax = util.dtype_limits(img)
+    ax = plt.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)
+
+
+@curry
+def subregion(bbox, img):
+    minr, minc, maxr, maxc = bbox
+    return img[minr:maxr, minc:maxc]
+
+
+@curry
+def bbox_mask(bbox, img):
+    minr, minc, maxr, maxc = bbox
+    mask_img = np.zeros_like(img, dtype = np.bool)
+    mask_img[minr:maxr, minc:maxc] = True
+    return mask_img
+
+@curry
+def image_center(r_hwidth, c_hwidth, img):
+    nrows, ncols = img.shape
+    rctr, cctr = nrows//2, ncols//2
+    minr = max(0, rctr - r_hwidth)
+    minc = max(0, cctr - c_hwidth)
+    maxr = min(nrows, rctr + r_hwidth)
+    maxc = min(ncols, cctr + c_hwidth)
+    return img[minr:maxr, minc:maxc]
+
+
+@curry
+def extract_bbox(bbox, img):
+    minr, minc, maxr, maxc = bbox
+    return img[minr:maxr, minc:maxc]
+    
