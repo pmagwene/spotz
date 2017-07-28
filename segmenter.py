@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path
 import json
 
@@ -34,9 +35,9 @@ def threshold_from_blank(blankimg, perc = 99.9, invert = False):
     return np.percentile(blankimg.ravel(), perc)
 
 
-def threshold_from_blank_bbox(img, bbox, perc = 99.99, invert = False):
+def threshold_from_blank_bbox(img, bbox, perc = 99.9, invert = False):
     bbox_img = imgz.extract_bbox(bbox, img)
-    return estimate_threshold_from_blank(bbox_img, perc = perc, invert = invert)
+    return threshold_from_blank(bbox_img, perc = perc, invert = invert)
 
 
 def bbox_has_object(bbox, binary_img, min_size = 1):
@@ -48,10 +49,6 @@ def bbox_has_object(bbox, binary_img, min_size = 1):
         return False
     
     
-    
-    
-
-
 def bbox_to_poly(bbox):
     minr, minc, maxr, maxc = bbox
     pt1 = (minr, minc)
@@ -135,7 +132,7 @@ def filter_by_eccentricity(limit, labeled_img):
 def save_sparse_mask(labeled_img, fname):
     sp.sparse.save_npz(sp.sparse.coo_matrix(labeled_img))
 
-def segment_grid_unit(unit_edges, unit_seed):
+def segment_grid_unit(unit_edges, unit_seed, include_boundary = True):
     n = np.max(unit_seed)
     nrows, ncols = unit_edges.shape
     unit_seed[1, 1] = n + 1
@@ -144,12 +141,15 @@ def segment_grid_unit(unit_edges, unit_seed):
     unit_seed[nrows - 2, 1] = n + 4 
     wshed = morphology.watershed(unit_edges, unit_seed)
     wshed[wshed != n] = 0
+    if include_boundary:
+        boundary = segmentation.find_boundaries(wshed, mode = "outer") * n
+        wshed += boundary 
     return wshed
     
 
-def segment_by_watershed(img, blank_bbox, grid_data,
+def segment_by_watershed(img, grid_data, blank_bbox,
                          opening = None,
-                         min_object = 25,
+                         min_hole = 25, min_object = 25,
                          threshold_perc = 99.9,
                          invert = False, autoexpose = False):
     if invert:
@@ -161,14 +161,18 @@ def segment_by_watershed(img, blank_bbox, grid_data,
         img = morphology.opening(img, selem = morphology.disk(opening))
 
     threshold = threshold_from_blank_bbox(img, blank_bbox, perc = threshold_perc)
-    binary_img = pipe(img > threshold, imgz.remove_small_objects(min_object))
+    binary_img = pipe(img > threshold,
+                      imgz.remove_small_holes(min_hole),
+                      imgz.remove_small_objects(min_object))
 
+    binary_img = imgz.mask_outside_bbox(grid_data["total_bbox"], binary_img)
 
     edges = filters.scharr(img)
     seeds = np.zeros_like(img, dtype = int)
 
     wshed = np.zeros_like(img, dtype = np.uint32)
     for i, ctr in enumerate(grid_data["centers"]):
+        ctr = tuple(ctr)
         bbox = grid_data["bboxes"][i]
         minr, minc, maxr, maxc = bbox
         if binary_img[ctr]:
@@ -177,20 +181,9 @@ def segment_by_watershed(img, blank_bbox, grid_data,
             unit_seed = seeds[minr:maxr, minc:maxc]
             wshed[minr:maxr, minc:maxc] = segment_grid_unit(unit_edges, unit_seed)
         
-        # if np.any(binary_img[minr:maxr, minc:maxc]):
-        #     seeds[ctr] = i + 1
-
+    #wshed = imgz.remove_small_objects(min_object, wshed)
     return wshed
 
-    ngrids = len(grid_data["bboxes"])
-    gminr, gminc, gmaxr, gmaxc = grid_data["total_bbox"]
-    seeds[gminr + 1, gminc + 1] = ngrids + 1
-    seeds[gmaxr - 1, gmaxc - 1] = ngrids + 2
-    
-    
-    grid_mask = imgz.bbox_mask(grid_data["total_bbox"], img)
-    wshed = morphology.watershed(edges, seeds, mask = grid_mask)
-    return wshed
 
 
 def segment_image(img, grid_data, 
@@ -221,14 +214,8 @@ def segment_image(img, grid_data,
         if sigma is None:
             sigma = 4
         threshold_func = threshold_func(blocksize, sigma)
+    binary_img = threshold_func(img)
 
-    # binary_img = threshold_func(img)
-
-    binary_local = imgz.threshold_gaussian(3, 3, img)
-    binary_otsu = imgz.threshold_otsu(img)
-    binary_img = np.logical_and(binary_local, binary_otsu) 
-
-    
     # Morphological opening
     #
     if elemsize is None:
@@ -253,10 +240,6 @@ def segment_image(img, grid_data,
     #
     labeled_img = filter_objects_by_grid(grid_data, binary_img)
 
-    # Filter by final region properties
-    # 
-    #labeled_img = filter_by_eccentricity(max_eccentricity, labeled_img)
-    
     return labeled_img
 
 
@@ -289,11 +272,6 @@ def segment_image(img, grid_data,
               help = "Minimum object size (in pixels).",
               type = int,
               default = None)
-@click.option("--max-eccentricity",
-              help = "Maximum eccentricity of objects.",
-              type = float,
-              default = 0.65,
-              show_default = True)
 @click.option("--clear-border/--keep-border",
               help = "Remove objects that touch the border of the image",
               default = True,
@@ -324,10 +302,9 @@ def segment_image(img, grid_data,
                 type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
 
-def main(imgfiles, gridfile, outdir, prefix,
+def old_main(imgfiles, gridfile, outdir, prefix,
          threshold = "local", blocksize = None, sigma = None,
          elemsize = None, min_hole = None, min_object = None, 
-         max_eccentricity = 0.65,
          clear_border = False, invert = False, autoexpose = False,
          display = False):
     """Segment microbial colonies in an image of a pinned plate.
@@ -371,6 +348,96 @@ def main(imgfiles, gridfile, outdir, prefix,
             plt.show()
 
     
+
+@click.command()
+@click.option('--threshold-perc',
+              help = "Thresholding percentile relative to blank",
+              type = float,
+              default = 99.9, 
+              show_default = True)
+@click.option("--elemsize",
+              help = "Size of element for morphological opening.",
+              type = int,
+              default = 1,
+              show_default = True)
+@click.option("--min-hole",
+              help = "Minimum hole size (in pixels).",
+              type = int,
+              default = 25,
+              show_default = True)
+@click.option("--min-object",
+              help = "Minimum object size (in pixels).",
+              type = int,
+              default = 25,
+              show_default = True)
+@click.option("--invert/--no-invert",
+              help = "Whether to invert the image before analyzing",
+              default = False,
+              show_default = True)
+@click.option("--autoexpose/--no-autoexpose",
+              help = "Whether to apply exposure equalization before analyzing",
+              default = False,
+              show_default = True)
+@click.option("--display/--no-display",
+              help = "Whether to display segmented objects.",
+              default = False,
+              show_default = True)
+@click.option("-p", "--prefix",
+              help = "Prefix for output files",
+              type = str,
+              default = "MASK",
+              show_default = True)
+@click.argument("imgfiles",
+                nargs = -1,
+                type = click.Path(exists = True, dir_okay = False))
+@click.argument("gridfile",
+                type = click.Path(exists = True, dir_okay = False))
+@click.argument("blankfile",
+                type = click.Path(exists = True, dir_okay = False))
+@click.argument("outdir", 
+                type = click.Path(exists = True, file_okay = False,
+                                  dir_okay = True))
+
+def main(imgfiles, gridfile, blankfile, outdir, prefix,
+         threshold_perc,
+         elemsize = 2, min_hole = 25, min_object = 25, 
+         invert = False, autoexpose = False, display = False):
+    """Segment microbial colonies in an image of a pinned plate.
+
+    Input is one or more image files, a JSON "grid file" created by
+    the gridder program, and the name of the directory to write the
+    segmentation mask to.
+    
+    Segmentation involves:
+    - Inversion (required if dark colonies on light) and auto exposure (optional)
+    - Thresholding
+    - Morphological opening
+    - Filtering of small objects and holes
+    - Watershed dtermination of objects within grid
+    """
+
+    grid_data = json.load(open(gridfile, "r"))
+    blank_data = json.load(open(blankfile, "r"))
+    blank_bbox = blank_data.values()[0]
+
+    for imgfile in imgfiles:
+        img = np.squeeze(io.imread(imgfile))
+        labeled_img = segment_by_watershed(img, grid_data, blank_bbox,
+                                           opening = elemsize,
+                                           min_hole = min_hole,
+                                           min_object = min_object,
+                                           threshold_perc = threshold_perc,
+                                           invert = invert,
+                                           autoexpose = autoexpose)
+    
+        root, _ = os.path.splitext(os.path.basename(imgfile))
+        outfile = os.path.join(outdir, "{}-{}.npz".format(prefix, root))
+        sp.sparse.save_npz(outfile, sp.sparse.coo_matrix(labeled_img))
+
+        if display:
+            fig, ax = plt.subplots(1,1)
+            ax.imshow(color.label2rgb(labeled_img, img, bg_label = 0))
+            plt.show()
 
 if __name__ == "__main__":
     main()

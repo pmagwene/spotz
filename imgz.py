@@ -141,6 +141,14 @@ def subregion(bbox, img):
 
 
 @curry
+def mask_outside_bbox(bbox, img, background = 0):
+    minr, minc, maxr, maxc = bbox
+    mask_img = np.ones_like(img, dtype = img.dtype) * background
+    mask_img[minr:maxr, minc:maxc] = img[minr:maxr, minc:maxc].copy()
+    return mask_img
+    
+
+@curry
 def bbox_mask(bbox, img):
     minr, minc, maxr, maxc = bbox
     mask_img = np.zeros_like(img, dtype = np.bool)
