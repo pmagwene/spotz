@@ -1,13 +1,15 @@
 from __future__ import print_function
+import json
 
 import numpy as np
 
 import matplotlib
 matplotlib.use('qt5agg')
 from matplotlib.widgets import RectangleSelector, Button
+from matplotlib import patches
 import matplotlib.pyplot as plt
 
-from skimage import (transform, io)
+from skimage import (transform, io, util)
 
 import click
 import json
@@ -168,8 +170,39 @@ class SelectorCollection(object):
         json.dump(d, self.outfile, indent = 1)
         plt.close("all")
 
+
+#-----------------------------------------------------------------------------  
+
+def visualizeROI(roidict, img, cmap = "gray", alpha = 0.35, **args):
+    colors = plt.cm.tab10(np.linspace(0, 1, len(roidict))) 
+    fig, ax = plt.subplots(1,1)
+    vmin, vmax = util.dtype_limits(img, clip_negative = True) 
+    ax.imshow(img, cmap = cmap, vmin = vmin, vmax = vmax)
+    for i, region in enumerate(roidict.values()):
+        minr, minc, maxr, maxc = region
+        height = maxr - minr
+        width = maxc - minc
+        rect = patches.Rectangle((minc, minr), width, height,
+                                 alpha = alpha, color = colors[i], **args)
+        ax.add_patch(rect)
+    return fig, ax
+
+@click.command()
+@click.argument("imgfile",
+                type = click.File("r"))
+@click.argument("roifile",
+                type = click.File("r"))
+def showROI(imgfile, roifile):
+    """Draw regions of interest defined in a ROI file (json format).
+    """
+    img = np.squeeze(io.imread(imgfile))
+    roidict = json.load(roifile)
+    fig, ax = visualizeROI(roidict, img)
+    plt.show()
+        
     
-#-------------------------------------------------------------------------------    
+    
+#-----------------------------------------------------------------------------  
 
 @click.command()
 @click.option("-r", "--rows",

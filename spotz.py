@@ -20,6 +20,7 @@ cli.add_command(extractROI.main, "extractROI")
 cli.add_command(gridder.main, "gridder")
 cli.add_command(segmenter.main, "segmenter")
 cli.add_command(spotstats.main, "spotstats")
+cli.add_command(drawROI.showROI, "showROI")
 cli.add_command(showmask.main, "showmask")
 
 

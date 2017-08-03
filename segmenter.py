@@ -67,6 +67,13 @@ def region_encloses_grid_center(region, grid_centers):
         return False, None
 
 
+def filter_regions(labeled_img, cmp_func):
+    regions = measure.regionprops(labeled_img)
+    good_labels = [r.label for r in regions if cmp_func(r)]
+    return keep_regions(labeled_img, good_labels)
+
+    
+
 def keep_regions(labeled_img, labels):
     masked_img = np.in1d(labeled_img.ravel(), np.asarray(labels))
     masked_img.shape = labeled_img.shape

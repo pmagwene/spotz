@@ -1,4 +1,6 @@
 from __future__ import print_function
+from functools import update_wrapper
+import operator
 
 import numpy as np
 import scipy as sp
@@ -18,6 +20,7 @@ class PersistentRectangleSelector(RectangleSelector):
         super(PersistentRectangleSelector, self).release(event)
         self.to_draw.set_visible(True)
         self.canvas.draw()   
+
 
 class SelectorContainer(object):
     def __init__(self, selector):
@@ -130,8 +133,9 @@ def disk_erosion(radius, img):
 
 @curry
 def imshowg(img):
-    vmin, vmax = util.dtype_limits(img)
+    vmin, vmax = util.dtype_limits(img, clip_negative = True)
     ax = plt.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)
+    return ax
 
 
 @curry
@@ -143,8 +147,20 @@ def subregion(bbox, img):
 @curry
 def mask_outside_bbox(bbox, img, background = 0):
     minr, minc, maxr, maxc = bbox
-    mask_img = np.ones_like(img, dtype = img.dtype) * background
-    mask_img[minr:maxr, minc:maxc] = img[minr:maxr, minc:maxc].copy()
+    bkgd = np.array(background).astype(img.dtype)
+    mask_img = np.ones_like(img, dtype = img.dtype) * bkgd
+    row_slice, col_slice = slice(minr, maxr), slice(minc, maxc)
+    mask_img[row_slice, col_slice] = img[row_slice, col_slice].copy()
+    return mask_img
+
+@curry
+def mask_border(size, img, background = 0):
+    nrows, ncols = img.shape
+    bkgd = np.array(background).astype(img.dtype)
+    mask_img = np.ones_like(img, dtype = img.dtype) * bkgd
+    row_slice = slice(size, nrows - size)
+    col_slice = slice(size, ncols - size)
+    mask_img[row_slice, col_slice] = img[row_slice, col_slice].copy()
     return mask_img
     
 
@@ -171,3 +187,5 @@ def extract_bbox(bbox, img):
     minr, minc, maxr, maxc = bbox
     return img[minr:maxr, minc:maxc]
     
+
+
