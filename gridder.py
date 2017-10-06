@@ -241,7 +241,12 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
             grid_data = find_grid(binary_img, rows, cols, min_gap, min_n)
         except RuntimeError:
             print("No grid found in {}".format(imgfile))
-            sys.exit(1)
+            if display:
+                fig, ax = plt.subplots()
+                ax.imshow(oimg, cmap = "gray")
+                ax.imshow(binary_img, cmap = "Reds", alpha = 0.45)
+                plt.show()      
+                sys.exit(1)      
         s = json.dumps(grid_data, indent = 1)
 
         root, _ = os.path.splitext(os.path.basename(imgfile))

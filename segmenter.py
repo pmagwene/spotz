@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os.path
+import os.path, sys
 import json
 
 import numpy as np
@@ -250,6 +250,13 @@ def segment_image(img, grid_data,
     return labeled_img
 
 
+def bbox_in_image(bbox, img):
+    nrows, ncols = img.shape
+    if (bbox[0] > nrows or bbox[3] > nrows) or \
+       (bbox[1] > ncols or bbox[3] > ncols):
+        return False
+    return True
+
 
 #-------------------------------------------------------------------------------    
 
@@ -337,7 +344,6 @@ def old_main(imgfiles, gridfile, outdir, prefix,
     grid_data = json.load(open(gridfile, "r"))
 
     for imgfile in imgfiles:
-        img = np.squeeze(io.imread(imgfile))
         labeled_img = segment_image(img, grid_data, 
                                     threshold = threshold, blocksize = blocksize,
                                     sigma = sigma, elemsize = elemsize,
@@ -429,6 +435,9 @@ def main(imgfiles, gridfile, blankfile, outdir, prefix,
 
     for imgfile in imgfiles:
         img = np.squeeze(io.imread(imgfile))
+        if not bbox_in_image(blank_bbox, img):
+            print("\nERROR: blank ROI invalid for image {}".format(imgfile))
+            sys.exit(1)
         labeled_img = segment_by_watershed(img, grid_data, blank_bbox,
                                            opening = elemsize,
                                            min_hole = min_hole,
