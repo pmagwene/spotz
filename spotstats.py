@@ -10,8 +10,9 @@ import click
 
 def region_stats(region, nrows, ncols):
     position = region.label
-    row = (position/ncols)
+    row = (position - 1)/ncols  # 0 indexed row
     col = position - (row * ncols)
+    row = row + 1  # update row so 1 indexed
     centroid_r = region.centroid[0]
     centroid_c = region.centroid[1]
     area = region.area
