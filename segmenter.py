@@ -154,23 +154,43 @@ def segment_grid_unit(unit_edges, unit_seed, include_boundary = True):
     return wshed
     
 
-def segment_by_watershed(img, grid_data, blank_bbox,
-                         opening = None,
-                         min_hole = 25, min_object = 25,
-                         threshold_perc = 99.9,
-                         invert = False, autoexpose = False):
+
+def binarize_image(img, blank_bbox, threshold = "otsu", threshold_perc = 99.9, 
+                        opening = None,  min_hole = 25, min_object = 25,
+                        invert = False, autoexpose = False):
     if invert:
         img = imgz.invert(img)
     if autoexpose:
         img = imgz.equalize_adaptive(img)
 
     if opening is not None:
-        img = morphology.opening(img, selem = morphology.disk(opening))
+        img = morphology.opening(img, selem = morphology.disk(opening))        
 
-    threshold = threshold_from_blank_bbox(img, blank_bbox, perc = threshold_perc)
+    threshold_dict = {"otsu":filters.threshold_otsu,
+                      "li":filters.threshold_li,
+                      "isodata":filters.threshold_isodata}
+    if threshold in ["otsu", "li", "isodata"]:
+        threshold = threshold_dict[threshold](img)
+    else:
+        threshold = threshold_from_blank_bbox(img, blank_bbox,  perc = threshold_perc) 
+
     binary_img = pipe(img > threshold,
                       imgz.remove_small_holes(min_hole),
                       imgz.remove_small_objects(min_object))
+    return binary_img
+
+
+
+
+def segment_by_watershed(img, grid_data, blank_bbox, threshold = None,
+                         threshold_perc = 99.9,
+                         opening = None,
+                         min_hole = 25, min_object = 25,
+                         invert = False, autoexpose = False):
+
+
+    binary_img = binarize_image(img, blank_bbox, threshold = threshold, threshold_perc = threshold_perc,
+        opening = opening, min_hole = min_hole, min_object = min_object, invert = invert, autoexpose = autoexpose)
 
     binary_img = imgz.mask_outside_bbox(grid_data["total_bbox"], binary_img)
 

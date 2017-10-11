@@ -86,6 +86,20 @@ def colony_stats(regions, nrows, ncols):
               type = int,
               default = 12,
               show_default = True)
+@click.option("--alpha-rows/--alpha-cols", 
+              help = "Whether to label rows (or cols) alphabetically",
+              default = True,
+              show_default = True)
+@click.option("--alpha-increasing/--alpha-decreasing",
+              help = "Whether alphabetical indexing increases or decreases.",
+              default = True,
+              show_default = True)
+@click.option("--numeric-increasing/--numeric-decreasing",
+              help = "Whether the numberical indexing increases or decreases.",
+              default = True,
+              show_default = True)
+
+ 
 def main(imgfiles, maskdir, outdir, prefix, mask_prefix, rows, cols):
     """Extract statistics from labeled objects in an image.
     """

@@ -69,8 +69,8 @@ def estimate_grid_centers(centroids, min_gap, min_n):
     row_vals, row_int = connected_intervals(centroids[:,0], min_gap)
     col_vals, col_int = connected_intervals(centroids[:,1], min_gap)
 
-    valid_rows = [i for i in row_int if (i[1] - i[0]) > min_n]
-    valid_cols = [i for i in col_int if (i[1] - i[0]) > min_n]
+    valid_rows = [i for i in row_int if (i[1] - i[0]) >= min_n]
+    valid_cols = [i for i in col_int if (i[1] - i[0]) >= min_n]
 
     row_centers = interval_means(row_vals, valid_rows)
     col_centers = interval_means(col_vals, valid_cols)
