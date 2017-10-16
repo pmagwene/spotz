@@ -101,6 +101,9 @@ def threshold_otsu(img):
 def threshold_li(img):
     return img > filters.threshold_li(img)
 
+def threshold_yen(img):
+    return img > filters.threshold_yen(img)
+
 def threshold_isodata(img):
     return img > filters.threshold_isodata(img)
 

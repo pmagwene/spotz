@@ -21,7 +21,7 @@ import spotzplot
 
 #-------------------------------------------------------------------------------    
     
-def find_grid_bboxes(binary_img, min_gap, min_n):
+def find_grid_bboxes(binary_img, min_gap, min_n, nrows, ncols, useouter = True):
     """Find gridded objects in a binary image.
 
     * min_gap is the minimum gap, in pixels, between objects in grid
@@ -35,6 +35,9 @@ def find_grid_bboxes(binary_img, min_gap, min_n):
 
     centroids = np.vstack([r.centroid for r in regions])
     row_centers, col_centers = estimate_grid_centers(centroids, min_gap, min_n)
+
+    if useouter:
+        row_centers, col_centers = grid_centers_from_outermost(row_centers, col_centers, nrows, ncols)
 
     if not(len(row_centers)) or not(len(col_centers)):
         raise RuntimeError("No grid found in image.")
@@ -50,8 +53,7 @@ def connected_intervals(vals, min_gap):
     vals = np.sort(vals)
     dist = vals[1:] - vals[:-1]
     rbreaks = np.argwhere(dist > min_gap).flatten() + 1
-    lbreaks = rbreaks + 1
-    lbreaks = [0] + lbreaks.tolist()
+    lbreaks = [0] + rbreaks.tolist()
     rbreaks = rbreaks.tolist() + [len(vals)-1]
     intervals = zip(lbreaks, rbreaks)
     return vals, intervals
@@ -61,6 +63,10 @@ def interval_means(vals, intervals):
     """Find means of connected intervals.
     """
     return [np.mean(vals[i[0]:i[1]]) for i in intervals]
+
+def median_center_spacing(ctrs):
+    spacing = np.array(ctrs[1:]) - np.array(ctrs[:-1])
+    return np.median(np.round(spacing))
     
 
 def estimate_grid_centers(centroids, min_gap, min_n):
@@ -76,6 +82,31 @@ def estimate_grid_centers(centroids, min_gap, min_n):
     col_centers = interval_means(col_vals, valid_cols)
 
     return np.round(row_centers).astype(np.int), np.round(col_centers).astype(np.int)
+
+def grid_centers_from_outermost(row_centers, col_centers, nrows, ncols):
+    row_spacing = median_center_spacing(row_centers)
+    col_spacing = median_center_spacing(col_centers)
+
+    top = row_centers[0]
+    row_centers = top + (np.arange(nrows) * row_spacing)
+    left = col_centers[0]
+    col_centers = left + (np.arange(ncols) * col_spacing)
+    return np.round(row_centers).astype(np.int), np.round(col_centers).astype(np.int)
+
+
+def make_grid_from_dims(row_dim, col_dim, nrows, ncols, row_offset = 0, col_offset = 0):
+    row_borders = np.arange(0, nrows + 1) * row_dim + row_offset
+    col_borders = np.arange(0, ncols + 1) * col_dim + col_offset
+    row_pairs = zip(row_borders[:-1], row_borders[1:])
+    col_pairs = zip(col_borders[:-1], col_borders[1:])
+    rc_pairs = product(row_pairs, col_pairs)
+    bboxes = [(p[0][0], p[1][0], p[0][1], p[1][1]) for p in rc_pairs]
+    return bboxes
+
+
+
+
+
 
 
 def grid_bboxes_from_centers(row_centers, col_centers, shape):
@@ -128,7 +159,7 @@ def threshold_and_open(img,
     
 
 def find_grid(binary_img, nrows, ncols,
-              min_gap = None, min_n = None):
+              min_gap = None, min_n = None, useouter = True):
 
     rdim, cdim = binary_img.shape
     if min_gap is None:
@@ -136,7 +167,7 @@ def find_grid(binary_img, nrows, ncols,
     if min_n is None:
         min_n = int(0.5 * min(nrows, ncols))
 
-    bboxes, centers = find_grid_bboxes(binary_img, min_gap, min_n)
+    bboxes, centers = find_grid_bboxes(binary_img, min_gap, min_n, nrows, ncols, useouter = useouter)
     total_bbox = (bboxes[0][0], bboxes[0][1], bboxes[-1][2], bboxes[-1][3])
     unit_height = bboxes[0][2] - bboxes[0][0]
     unit_width = bboxes[0][3] - bboxes[0][1]
@@ -144,6 +175,23 @@ def find_grid(binary_img, nrows, ncols,
                 min_gap = min_gap, min_n = min_n, total_bbox = total_bbox,
                 unit_height = unit_height, unit_width = unit_width,
                 unit_area = unit_height * unit_width)
+
+
+def threshold_grid_units(grid_data, img, threshold_func = imgz.threshold_otsu):
+    """Threshold each grid unit independently.
+    """
+    timg = np.zeros_like(img, dtype = np.bool)
+
+    #  threshold each grid unit independently
+    for i, ctr in enumerate(grid_data["centers"]):
+        ctr = tuple(ctr)
+        bbox = grid_data["bboxes"][i]
+        minr, minc, maxr, maxc = bbox
+        lthresh = threshold_func(img[minr:maxr, minc:maxc])
+        timg[minr:maxr, minc:maxc] = lthresh
+
+    return timg
+
 
 
 #-------------------------------------------------------------------------------    
