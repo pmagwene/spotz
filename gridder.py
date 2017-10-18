@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import skimage
 from skimage import (morphology, segmentation, exposure, feature, filters,
                      measure, transform, util, io, color)
+import peakutils
 
 from toolz.curried import *
 import click
@@ -192,6 +193,40 @@ def threshold_grid_units(grid_data, img, threshold_func = imgz.threshold_otsu):
 
     return timg
 
+
+def construct_grid_template(nrows, ncols, row_spacing, col_spacing, radius):
+    rwidth = nrows * row_spacing
+    cwidth = ncols * col_spacing
+    template = np.zeros((rwidth, cwidth), dtype = np.uint16)
+    
+    row_centers = row_spacing * np.arange(1, nrows+1) - row_spacing/2
+    col_centers = col_spacing * np.arange(1, ncols+1) - col_spacing/2
+    
+    centers = list(product(row_centers, col_centers))
+    for i, ctr in enumerate(centers):
+        upctr = ctr[0] - radius
+        dnctr = ctr[0] + radius + 1
+        ltctr = ctr[1] - radius
+        rtctr = ctr[1] + radius + 1
+        
+        template[upctr:dnctr, ltctr:rtctr] = morphology.disk(radius) * (i+1)
+    
+    return template, row_centers, col_centers
+
+
+def find_grid_rotation(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
+    mintheta, maxtheta = min(theta_range), max(theta_range)
+    if ntheta is None:
+        ntheta = (maxtheta - mintheta) * 4 + 1
+    theta = np.linspace(mintheta, maxtheta, ntheta)
+    sinogram = transform.radon(transform.rescale(bimg, scale=scale), 
+                               theta, circle=False)
+    sinogram_max = np.max(sinogram, axis=0)
+    peak_indices = peakutils.indexes(sinogram_max, thres=0.999)
+    interpolated_peaks = peakutils.interpolate(theta, sinogram_max, 
+                                              ind=peak_indices)
+    return sinogram, interpolated_peaks[0]
+    
 
 
 #-------------------------------------------------------------------------------    
