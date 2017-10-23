@@ -191,4 +191,27 @@ def extract_bbox(bbox, img):
     return img[minr:maxr, minc:maxc]
     
 
+def pad_to_same_size(img1, img2, mode = "edge"):
+    r1, c1 = img1.shape
+    r2, c2 = img2.shape
+    
+    rmax = max(r1,r2)
+    cmax = max(c1,c2)
+    
+    rdiff1, rdiff2 = rmax - r1, rmax - r2
+    cdiff1, cdiff2 = cmax - c1, cmax - c2
+    
+    rpad1 = rdiff1/2, rdiff1 - rdiff1/2
+    rpad2 = rdiff2/2, rdiff2 - rdiff2/2
+    
+    cpad1 = cdiff1/2, cdiff1 - cdiff1/2
+    cpad2 = cdiff2/2, cdiff2 - cdiff2/2    
+        
+    pimg1 = util.pad(img1, (rpad1, cpad1), mode = mode)
+    pimg2 = util.pad(img2, (rpad2, cpad2), mode = mode)    
+
+    offset1 = (rpad1[0], cpad1[0])
+    offset2 = (rpad2[0], cpad2[0])
+    
+    return pimg1, pimg2, offset1, offset2
 

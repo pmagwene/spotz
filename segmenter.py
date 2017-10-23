@@ -152,6 +152,29 @@ def segment_grid_unit(unit_edges, unit_seed, include_boundary = True):
         boundary = segmentation.find_boundaries(wshed, mode = "outer") * n
         wshed += boundary 
     return wshed
+
+@curry
+def segment_watershed_centers(centers, bboxes, img, bimg, epsilon = 5):
+    edges = filters.scharr(img)
+    seeds = np.zeros_like(img, dtype = int)
+    wshed = np.zeros_like(img, dtype = np.uint32)
+
+    # watershed each grid unit independently
+    for i, ctr in enumerate(centers):
+        ctr = tuple(ctr)
+        upctr = ctr[0] - epsilon
+        dnctr = ctr[0] + epsilon
+        ltctr = ctr[1] - epsilon
+        rtctr = ctr[1] + epsilon
+    
+        minr, minc, maxr, maxc = bboxes[i]
+        if np.any(bimg[upctr:dnctr, ltctr:rtctr]):
+            seeds[upctr:dnctr, ltctr:rtctr] = bimg[upctr:dnctr, ltctr:rtctr] * i + 1
+            unit_edges = edges[minr:maxr, minc:maxc]
+            unit_seed = seeds[minr:maxr, minc:maxc]
+            wshed[minr:maxr, minc:maxc] = segment_grid_unit(unit_edges, unit_seed)
+
+    return wshed
     
 
 
@@ -276,6 +299,13 @@ def bbox_in_image(bbox, img):
        (bbox[1] > ncols or bbox[3] > ncols):
         return False
     return True
+
+
+
+
+
+
+
 
 
 #-------------------------------------------------------------------------------    
