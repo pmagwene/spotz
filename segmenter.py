@@ -21,6 +21,44 @@ import imgz, spotzplot
 #-------------------------------------------------------------------------------    
     
 
+@curry
+def threshold_bboxes(bboxes, img, threshold_func = imgz.threshold_li, border=10):
+    """Threshold each bbox region independently, stitching together into total image.
+
+    The total image in the logical_or of thresholding each bbox independently.
+
+    border -- gives buffer region around bbox to include for each bbox, allowing bboxes to be
+    increased/decreased in size a uniform amount.
+    """
+    thresh_img = np.zeros_like(img, dtype = np.bool)
+    nrows, ncols = img.shape
+    for bbox in bboxes:
+        minr, minc, maxr, maxc = bbox
+        minr, minc = max(0, minr - border), max(0, minc - border)
+        maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)
+        local_thresh = threshold_func(img[minr:maxr, minc:maxc])
+        thresh_img[minr:maxr, minc:maxc] = np.logical_or(local_thresh, thresh_img[minr:maxr, minc:maxc])
+    return thresh_img    
+
+
+def assign_objects_to_grid(grid_centers, bimg, maxdist = 20):
+    regions = measure.regionprops(morphology.label(bimg))
+    region_centroids = np.array([region.centroid for region in regions])
+    nregions = len(regions)
+    kdtree = sp.spatial.cKDTree(region_centroids)
+    dists, hits = kdtree.query(np.array(grid_centers), distance_upper_bound = maxdist)
+    new_limg = np.zeros_like(bimg, dtype=np.uint32)
+    new_regions = []
+    for i, hit in enumerate(hits):
+        if hit == nregions:
+            new_regions.append(None)
+        region = regions[hit]
+        region.label = i + 1
+        new_regions.append(region)
+        new_limg[region.coords[:,0], region.coords[:,1]] = i + 1
+    return new_limg, new_regions
+
+
 def middle_region(img, hfrac = 0.1):
     nrows, ncols = img.shape
     r_hwidth = int(round(nrows * hfrac))
@@ -154,10 +192,11 @@ def segment_grid_unit(unit_edges, unit_seed, include_boundary = True):
     return wshed
 
 @curry
-def segment_watershed_centers(centers, bboxes, img, bimg, epsilon = 5):
+def segment_watershed_centers(centers, bboxes, img, bimg, epsilon = 5, border = 10):
     edges = filters.scharr(img)
     seeds = np.zeros_like(img, dtype = int)
     wshed = np.zeros_like(img, dtype = np.uint32)
+    nrows, ncols = img.shape
 
     # watershed each grid unit independently
     for i, ctr in enumerate(centers):
@@ -168,6 +207,8 @@ def segment_watershed_centers(centers, bboxes, img, bimg, epsilon = 5):
         rtctr = ctr[1] + epsilon
     
         minr, minc, maxr, maxc = bboxes[i]
+        #minr, minc = max(0, minr - border), max(0, minc - border)
+        #maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)        
         if np.any(bimg[upctr:dnctr, ltctr:rtctr]):
             seeds[upctr:dnctr, ltctr:rtctr] = bimg[upctr:dnctr, ltctr:rtctr] * i + 1
             unit_edges = edges[minr:maxr, minc:maxc]

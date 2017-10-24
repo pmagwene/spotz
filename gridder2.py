@@ -7,17 +7,22 @@ import numpy as np
 from numpy.fft import fft, ifft, fft2, ifft2, fftshift
 import scipy
 
+import matplotlib
+matplotlib.use('qt5agg')
+import matplotlib.pyplot as plt
 
 import skimage
 from skimage import (morphology, segmentation, exposure, feature, filters,
                      measure, transform, util, io, color)
+import peakutils
 
 from toolz.curried import *
 import click
-import peakutils
 
 import imgz
 import spotzplot
+
+#------------------------------------------------------------------------------- 
 
 
 
@@ -27,7 +32,7 @@ def find_rotation_angle(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
     if ntheta is None:
         ntheta = (maxtheta - mintheta) * 4 + 1
     theta = np.linspace(mintheta, maxtheta, ntheta)
-    sinogram = transform.radon(transform.rescale(bimg, scale=scale), 
+    sinogram = transform.radon(transform.rescale(bimg, scale=scale, mode = "constant"), 
                                theta, circle=False)
     sinogram_max = np.max(sinogram, axis=0)
     peak_indices = peakutils.indexes(sinogram_max, thres=0.999)
@@ -38,7 +43,8 @@ def find_rotation_angle(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
 
 def fix_rotation(bimg):
     sinogram, angle = find_rotation_angle(bimg)
-    return transform.rotate(bimg, -angle, resize = False, preserve_range = True).astype(np.bool)
+    return transform.rotate(bimg, -angle, resize = False, 
+              preserve_range = True, mode = "constant").astype(np.bool)
 
 
 
@@ -118,8 +124,23 @@ def estimate_grid_ctrs(bimg, template, template_centers):
     newctrs = ctrs + np.array(offset1) + np.array(offset2) - np.array(shifts) 
     return newctrs
 
+
+def bboxes_from_centers(centers, rwidth, cwidth):
+    uprow = rwidth//2
+    dwrow = rwidth//2
+    ltcol = cwidth//2
+    rtcol = cwidth//2
+    bboxes = []
+    for ctr in centers:
+        minr = int(ctr[0] - uprow )
+        minc = int(ctr[1] - ltcol)
+        maxr = int(ctr[0] + dwrow)
+        maxc = int(ctr[1] + rtcol)
+        bboxes.append((minr, minc, maxr, maxc))
+    return bboxes
+
 @curry
-def estimate_grid(nrows, ncols, bimg):
+def find_grid(nrows, ncols, bimg):
     row_spacing, col_spacing, radius = estimate_grid_parameters(bimg)
     template, trow_centers, tcol_centers = construct_grid_template(nrows, ncols, row_spacing, col_spacing, radius)
     template_centers = np.array(list(product(trow_centers, tcol_centers)))
@@ -133,31 +154,142 @@ def estimate_grid(nrows, ncols, bimg):
     return g
 
             
-def bboxes_from_centers(centers, rwidth, cwidth):
-    uprow = rwidth/2
-    dwrow = rwidth/2#- uprow
-    ltcol = cwidth/2
-    rtcol = cwidth/2#- ltcol 
-    bboxes = []
-    for ctr in centers:
-        minr = int(ctr[0] - uprow )
-        minc = int(ctr[1] - ltcol)
-        maxr = int(ctr[0] + dwrow)
-        maxc = int(ctr[1] + rtcol)
-        bboxes.append((minr, minc, maxr, maxc))
-    return bboxes
 
-@curry
-def threshold_grid_units(bboxes, img, threshold_func = imgz.threshold_li, border=10):
-    """Threshold each grid unit independently.
+
+
+
+#-------------------------------------------------------------------------------    
+
+@click.command()
+@click.option("-r", "--rows",
+              help = "Number of rows in grid",
+              type = int,
+              default = 8,
+              show_default = True)
+@click.option("-c", "--cols",
+              help = "Number of cols in grid",
+              type = int,
+              default = 12,
+              show_default = True)
+@click.option('--threshold',
+              help = "Thresholding function to use",
+              type=click.Choice(['otsu', 'li', "isodata"]),
+              default = "li")
+@click.option("--opensize",
+              help = "Size of element for morphological opening.",
+              type = int,
+              default = 3,
+              show_default = True)
+@click.option("--display/--no-display",
+              help = "Whether to display found grid.",
+              default = False,
+              show_default = True)
+@click.option("--invert/--no-invert",
+              help = "Whether to invert the image before analyzing",
+              default = True,
+              show_default = True)
+@click.option("--rotate/--no-rotate",
+              help = "Whether to estimation the rotation angle to make grid rows, cols align with exes",
+              default = True,
+              show_default = True)
+@click.option("--autoexpose/--no-autoexpose",
+              help = "Whether to apply exposure equalization before analyzing",
+              default = False,
+              show_default = True)
+@click.option("-p", "--prefix",
+              help = "Prefix for output files",
+              type = str,
+              default = "GRID",
+              show_default = True)
+@click.argument("imgfiles",
+                type = click.Path(exists = True),
+                nargs = -1)
+@click.argument("outdir", 
+                type = click.Path(exists = True, file_okay = False,
+                                  dir_okay = True))
+def main(imgfiles, outdir, rows, cols, prefix = "grid",
+         threshold = "li", opensize = 3,
+         display = False, invert = False, autoexpose = False, rotate = True):
+    """Infer the coordinates of a gridded set of objects in an image.
+    
+    Grid finding involves three key steps: 
+
+      1. Image thresholding to define foreground vs background and
+      generate a binary image
+
+      2. Morphological opening of the binary image
+
+      3. Inference of the grid coordinates from foreground objects in
+      the binary image.
+    
+    User can optionally choose to invert and apply exposure equalization to
+    the input image. Inversion is required when the objects of
+    interest are dark objects on a light background (e.g. transparency
+    scanning).
     """
-    thresh_img = np.zeros_like(img, dtype = np.bool)
-    nrows, ncols = img.shape
-    for bbox in bboxes:
-        minr, minc, maxr, maxc = bbox
-        minr, minc = max(0, minr - border), max(0, minc - border)
-        maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)
-        local_thresh = threshold_func(img[minr:maxr, minc:maxc])
-        #thresh_img[minr:maxr, minc:maxc] = local_thresh
-        thresh_img[minr:maxr, minc:maxc] = np.logical_or(local_thresh, thresh_img[minr:maxr, minc:maxc])
-    return thresh_img
+
+    threshold_dict = {"otsu" : imgz.threshold_otsu,
+                      "li" : imgz.threshold_li,
+                      "isodata" : imgz.threshold_isodata}
+    threshold_func = threshold_dict[threshold]
+
+    for imgfile in imgfiles:
+        img = np.squeeze(io.imread(imgfile))
+
+        # invert and autoexpose
+        if invert:
+            iimg = imgz.invert(img)
+        else:
+            iimg = img
+        if autoexpose:
+            iimg = imgz.equalize_adaptive(iimg)
+
+
+        # initial thresholding and rotation correction
+        rbimg = pipe(iimg, 
+                  threshold_func,
+                  imgz.disk_opening(opensize), 
+                  imgz.clear_border)
+
+        angle = 0
+        if rotate:
+            _, angle = find_rotation_angle(rbimg)
+            rbimg = fix_rotation(rbimg)
+            img = transform.rotate(img, -angle, resize = False, 
+                                preserve_range = True, mode = "constant")  
+
+        try:
+            # find the grid
+            grid = find_grid(rows, cols, rbimg)
+        except RuntimeError:
+            print("No grid found in {}".format(imgfile))
+            if display:
+                fig, ax = plt.subplots()
+                ax.imshow(img, cmap = "gray")
+                ax.imshow(rbimg, cmap = "Reds", alpha = 0.45)
+                plt.show()      
+                sys.exit(1)    
+
+        grid_data = dict(bboxes = grid.bboxes, centers = grid.centers.tolist(),
+                        row_width = grid.row_width, col_width = grid.col_width,
+                        rotation_angle = angle)
+
+        s = json.dumps(grid_data, indent = 1)
+
+        root, _ = os.path.splitext(os.path.basename(imgfile))
+        outfile = os.path.join(outdir, "{}-{}.json".format(prefix, root))
+        with open(outfile, "w") as f:
+            f.write(s)
+        
+        if display:
+            fig, ax = plt.subplots()
+            ax.imshow(img, cmap = "gray")
+            ax.imshow(rbimg, cmap = "Reds", alpha = 0.45)
+            spotzplot.draw_bboxes(grid.bboxes, ax)
+            plt.show()
+    
+
+if __name__ == "__main__":
+    main()
+
+
