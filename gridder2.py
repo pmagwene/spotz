@@ -173,7 +173,7 @@ def find_grid(nrows, ncols, bimg):
               show_default = True)
 @click.option('--threshold',
               help = "Thresholding function to use",
-              type=click.Choice(['otsu', 'li', "isodata"]),
+              type=click.Choice(['otsu', 'li', "triangle", "mean"]),
               default = "li")
 @click.option("--opensize",
               help = "Size of element for morphological opening.",
@@ -230,7 +230,8 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
 
     threshold_dict = {"otsu" : imgz.threshold_otsu,
                       "li" : imgz.threshold_li,
-                      "isodata" : imgz.threshold_isodata}
+                      "triangle" : imgz.threshold_triangle,
+                      "mean" :  imgz.threshold_mean}
     threshold_func = threshold_dict[threshold]
 
     for imgfile in imgfiles:

@@ -10,6 +10,8 @@ import segmenter
 import segmenter2
 import spotstats
 import showmask
+import imgz
+import spotzplot
 
 
 @click.group()
