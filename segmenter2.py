@@ -120,6 +120,11 @@ def save_sparse_mask(labeled_img, fname):
 #-------------------------------------------------------------------------------    
 @click.command()
 
+@click.option("--opensize",
+              help = "Size of element for morphological opening.",
+              type = int,
+              default = 3,
+              show_default = True)
 @click.option("--closesize",
               help = "Size of element for morphological closing.",
               type = int,
@@ -150,6 +155,10 @@ def save_sparse_mask(labeled_img, fname):
               type = int,
               default = 5,
               show_default = True)
+@click.option('--threshold',
+              help = "Thresholding function to use",
+              type=click.Choice(['otsu', 'li', "triangle", "mean"]),
+              default = "li")
 @click.option("--invert/--no-invert",
               help = "Whether to invert the image before analyzing",
               default = True,
@@ -177,8 +186,8 @@ def save_sparse_mask(labeled_img, fname):
                                   dir_okay = True))
 
 def main(imgfiles, gridfile, outdir, prefix,
-         closesize = 3, minhole = 25, minobject = 25, 
-         border=10, maxdist=30, seedwidth=5,
+         opensize = 3, closesize = 3, minhole = 25, minobject = 25, 
+         border=10, maxdist=30, seedwidth=5, threshold="li",
          invert = True, autoexpose = False, display = False):
     """Segment microbial colonies in an image of a pinned plate.
 
@@ -193,6 +202,11 @@ def main(imgfiles, gridfile, outdir, prefix,
     - Morphological closing
     - Watershed dtermination of objects within grid
     """
+    threshold_dict = {"otsu" : imgz.threshold_otsu,
+                      "li" : imgz.threshold_li,
+                      "triangle" : imgz.threshold_triangle,
+                      "mean" :  imgz.threshold_mean}
+    threshold_func = threshold_dict[threshold]    
 
     grid_data = json.load(open(gridfile, "r"))
     grid_centers = np.array(grid_data["centers"])
@@ -211,10 +225,11 @@ def main(imgfiles, gridfile, outdir, prefix,
 
         # threshold
         thresh_img = pipe(iimg,
-                        threshold_bboxes(grid_bboxes, border = border),
+                        threshold_bboxes(grid_bboxes, threshold_func = threshold_func, border = border),
                         imgz.remove_small_objects(minobject),
                         imgz.remove_small_holes(minhole),
                         imgz.disk_closing(closesize),
+                        imgz.disk_opening(opensize),
                         imgz.clear_border)   
      
 
