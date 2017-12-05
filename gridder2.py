@@ -140,12 +140,12 @@ def bboxes_from_centers(centers, rwidth, cwidth):
     return bboxes
 
 @curry
-def find_grid(nrows, ncols, bimg, pkthreshold = 0.1, pkdist = None):
+def find_grid(nrows, ncols, bimg, pkthresh = 0.1, pkdist = None):
     if pkdist is None:
         r,c = bimg.shape
         pkdist = (r/(1.0 * nrows) + c/(1.0 * ncols)) * 0.25
 
-    row_spacing, col_spacing, radius = estimate_grid_parameters(bimg, threshold = pkthreshold, min_dist = pkdist)
+    row_spacing, col_spacing, radius = estimate_grid_parameters(bimg, threshold = pkthresh, min_dist = pkdist)
     template, trow_centers, tcol_centers = construct_grid_template(nrows, ncols, row_spacing, col_spacing, radius)
     template_centers = np.array(list(product(trow_centers, tcol_centers)))
     class GridData:
@@ -184,7 +184,7 @@ def find_grid(nrows, ncols, bimg, pkthreshold = 0.1, pkdist = None):
               type = int,
               default = 3,
               show_default = True)
-@click.option("--pkthreshold",
+@click.option("--pkthresh",
               help = "Threshold height (relative to max) to be called a peak.",
               type = float,
               default = 0.1,
@@ -222,7 +222,7 @@ def find_grid(nrows, ncols, bimg, pkthreshold = 0.1, pkdist = None):
                 type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
 def main(imgfiles, outdir, rows, cols, prefix = "grid",
-         threshold = "li", opensize = 3, pkthreshold = 0.1, pkdist = None,
+         threshold = "li", opensize = 3, pkthresh = 0.1, pkdist = None,
          display = False, invert = False, autoexpose = False, rotate = True):
     """Infer the coordinates of a gridded set of objects in an image.
     
@@ -275,7 +275,7 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
 
         try:
             # find the grid
-            grid = find_grid(rows, cols, rbimg, pkthreshold, pkdist)
+            grid = find_grid(rows, cols, rbimg, pkthresh, pkdist)
         except RuntimeError:
             print("No grid found in {}".format(imgfile))
             if display:
