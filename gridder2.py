@@ -178,7 +178,7 @@ def find_grid(nrows, ncols, bimg, pkthresh = 0.1, pkdist = None):
 @click.option('--threshold',
               help = "Thresholding function to use",
               type=click.Choice(['otsu', 'li', "triangle", "mean"]),
-              default = "li")
+              default = "otsu")
 @click.option("--opensize",
               help = "Size of element for morphological opening.",
               type = int,
@@ -222,7 +222,7 @@ def find_grid(nrows, ncols, bimg, pkthresh = 0.1, pkdist = None):
                 type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
 def main(imgfiles, outdir, rows, cols, prefix = "grid",
-         threshold = "li", opensize = 3, pkthresh = 0.1, pkdist = None,
+         threshold = "otsu", opensize = 3, pkthresh = 0.1, pkdist = None,
          display = False, invert = False, autoexpose = False, rotate = True):
     """Infer the coordinates of a gridded set of objects in an image.
     
