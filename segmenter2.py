@@ -21,8 +21,10 @@ import imgz, spotzplot
 #-------------------------------------------------------------------------------    
     
 
+
 @curry
-def threshold_bboxes(bboxes, img, threshold_func = imgz.threshold_li, border=10):
+def threshold_bboxes(bboxes, img, threshold_func = filters.threshold_li, 
+                     min_local_threshold = 0.5,border=10):
     """Threshold each bbox region independently, stitching together into total image.
 
     The total image in the logical_or of thresholding each bbox independently.
@@ -32,12 +34,16 @@ def threshold_bboxes(bboxes, img, threshold_func = imgz.threshold_li, border=10)
     """
     thresh_img = np.zeros_like(img, dtype = np.bool)
     nrows, ncols = img.shape
+    global_thresh = threshold_func(img)
+
     for bbox in bboxes:
         minr, minc, maxr, maxc = bbox
         minr, minc = max(0, minr - border), max(0, minc - border)
         maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)
         local_thresh = threshold_func(img[minr:maxr, minc:maxc])
-        thresh_img[minr:maxr, minc:maxc] = np.logical_or(local_thresh, thresh_img[minr:maxr, minc:maxc])
+        thresh = max(local_thresh, global_thresh * min_local_threshold)
+        local_img = img[minr:maxr, minc:maxc] > thresh
+        thresh_img[minr:maxr, minc:maxc] = np.logical_or(local_img, thresh_img[minr:maxr, minc:maxc])
     return thresh_img    
 
 
@@ -202,10 +208,10 @@ def main(imgfiles, gridfile, outdir, prefix,
     - Morphological closing
     - Watershed dtermination of objects within grid
     """
-    threshold_dict = {"otsu" : imgz.threshold_otsu,
-                      "li" : imgz.threshold_li,
-                      "triangle" : imgz.threshold_triangle,
-                      "mean" :  imgz.threshold_mean}
+    threshold_dict = {"otsu" : filters.threshold_otsu,
+                      "li" : filters.threshold_li,
+                      "triangle" : filters.threshold_triangle,
+                      "mean" :  filters.threshold_mean}
     threshold_func = threshold_dict[threshold]    
 
     grid_data = json.load(open(gridfile, "r"))
