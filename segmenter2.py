@@ -24,7 +24,7 @@ import imgz, spotzplot
 
 @curry
 def threshold_bboxes(bboxes, img, threshold_func = filters.threshold_li, 
-                     min_local_threshold = 0.5,border=10):
+                     min_local_threshold = 0.5, border=10):
     """Threshold each bbox region independently, stitching together into total image.
 
     The total image in the logical_or of thresholding each bbox independently.
@@ -165,6 +165,10 @@ def save_sparse_mask(labeled_img, fname):
               help = "Thresholding function to use",
               type=click.Choice(['otsu', 'li', "triangle", "mean"]),
               default = "li")
+@click.option('--localthresh',
+              help = "Minimum ratio of local threshold to global threshold.",
+              type = float,
+              default = 0.5)
 @click.option("--invert/--no-invert",
               help = "Whether to invert the image before analyzing",
               default = True,
@@ -172,6 +176,11 @@ def save_sparse_mask(labeled_img, fname):
 @click.option("--autoexpose/--no-autoexpose",
               help = "Whether to apply exposure equalization before analyzing",
               default = False,
+              show_default = True)
+@click.option("--saveimage",
+              help = "Whether to save an image of the segmented mask.",
+              default = False,
+              is_flag = True,
               show_default = True)
 @click.option("--display/--no-display",
               help = "Whether to display segmented objects.",
@@ -193,8 +202,8 @@ def save_sparse_mask(labeled_img, fname):
 
 def main(imgfiles, gridfile, outdir, prefix,
          opensize = 3, closesize = 3, minhole = 25, minobject = 25, 
-         border=10, maxdist=30, seedwidth=5, threshold="li",
-         invert = True, autoexpose = False, display = False):
+         border=10, maxdist=30, seedwidth=5, threshold="li", localthresh = 0.5,
+         invert = True, autoexpose = False, display = False, saveimage = False):
     """Segment microbial colonies in an image of a pinned plate.
 
     Input is one or more image files, a JSON "grid file" created by
@@ -231,7 +240,8 @@ def main(imgfiles, gridfile, outdir, prefix,
 
         # threshold
         thresh_img = pipe(iimg,
-                        threshold_bboxes(grid_bboxes, threshold_func = threshold_func, border = border),
+                        threshold_bboxes(grid_bboxes, threshold_func = threshold_func, 
+                                        min_local_threshold = localthresh, border = border),
                         imgz.remove_small_objects(minobject),
                         imgz.remove_small_holes(minhole),
                         imgz.disk_closing(closesize),
@@ -247,6 +257,19 @@ def main(imgfiles, gridfile, outdir, prefix,
         root, _ = os.path.splitext(os.path.basename(imgfile))
         outfile = os.path.join(outdir, "{}-{}.npz".format(prefix, root))
         sp.sparse.save_npz(outfile, sp.sparse.coo_matrix(watershed_img))
+
+        if saveimage:
+            fig, ax = spotzplot.draw_image_and_labels(img, watershed_img,
+                                        mask_cmap = "Reds", alpha = 0.35,
+                                        fontsize = 4, textcolor = "orange")
+            imagefile = os.path.join(outdir, "{}-{}.png".format(prefix, root))
+            nrows,ncols = img.shape
+            if nrows > ncols:
+                FIG_SIZE = (9,6)
+            else:
+                FIG_SIZE = (6,9)
+            fig.set_size_inches(FIG_SIZE)
+            fig.savefig(imagefile, dpi=300)
 
         if display:
             fig, ax = plt.subplots(1,1)
