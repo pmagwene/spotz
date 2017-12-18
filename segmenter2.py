@@ -163,7 +163,7 @@ def save_sparse_mask(labeled_img, fname):
               show_default = True)
 @click.option('--threshold',
               help = "Thresholding function to use",
-              type=click.Choice(['otsu', 'li', "triangle", "mean"]),
+              type=click.Choice(['otsu', 'li', "triangle", "mean", "yen"]),
               default = "li")
 @click.option('--localthresh',
               help = "Minimum ratio of local threshold to global threshold.",
@@ -179,6 +179,11 @@ def save_sparse_mask(labeled_img, fname):
               show_default = True)
 @click.option("--saveimage",
               help = "Whether to save an image of the segmented mask.",
+              default = False,
+              is_flag = True,
+              show_default = True)
+@click.option("--withgrid",
+              help = "Whether to also draw the grid on the saved/displayed image of the mask.",
               default = False,
               is_flag = True,
               show_default = True)
@@ -203,7 +208,8 @@ def save_sparse_mask(labeled_img, fname):
 def main(imgfiles, gridfile, outdir, prefix,
          opensize = 3, closesize = 3, minhole = 25, minobject = 25, 
          border=10, maxdist=30, seedwidth=5, threshold="li", localthresh = 0.5,
-         invert = True, autoexpose = False, display = False, saveimage = False):
+         invert = True, autoexpose = False, display = False, 
+         saveimage = False, withgrid = False):
     """Segment microbial colonies in an image of a pinned plate.
 
     Input is one or more image files, a JSON "grid file" created by
@@ -220,7 +226,8 @@ def main(imgfiles, gridfile, outdir, prefix,
     threshold_dict = {"otsu" : filters.threshold_otsu,
                       "li" : filters.threshold_li,
                       "triangle" : filters.threshold_triangle,
-                      "mean" :  filters.threshold_mean}
+                      "mean" :  filters.threshold_mean,
+                      "yen" : filters.threshold_yen}
     threshold_func = threshold_dict[threshold]    
 
     grid_data = json.load(open(gridfile, "r"))
@@ -262,6 +269,8 @@ def main(imgfiles, gridfile, outdir, prefix,
             fig, ax = spotzplot.draw_image_and_labels(img, watershed_img,
                                         mask_cmap = "Reds", alpha = 0.35,
                                         fontsize = 4, textcolor = "orange")
+            if withgrid:
+                spotzplot.draw_bboxes(grid_bboxes, ax=ax)
             imagefile = os.path.join(outdir, "{}-{}.png".format(prefix, root))
             nrows,ncols = img.shape
             if nrows > ncols:
@@ -274,6 +283,8 @@ def main(imgfiles, gridfile, outdir, prefix,
         if display:
             fig, ax = plt.subplots(1,1)
             ax.imshow(color.label2rgb(watershed_img, img, bg_label = 0))
+            if withgrid:
+                spotzplot.draw_bboxes(grid_bboxes, ax=ax)            
             plt.show()
 
 if __name__ == "__main__":

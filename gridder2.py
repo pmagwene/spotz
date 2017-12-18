@@ -6,6 +6,7 @@ from itertools import product
 import numpy as np
 from numpy.fft import fft, ifft, fft2, ifft2, fftshift
 import scipy
+from scipy import stats, signal
 
 import matplotlib
 matplotlib.use('qt5agg')
@@ -47,13 +48,39 @@ def fix_rotation(bimg):
               preserve_range = True, mode = "constant").astype(np.bool)
 
 
+def cubic_kernel(x):
+    """Cubic kernel."""
+    z = (1.0 - np.abs(x)**3)
+    z[np.abs(x) >= 1] = 0
+    return z  
+
+def reflect_ends(y, h):
+    ystart = y[:h]
+    yend = y[-h:]
+    Y = np.hstack((ystart[::-1], y, yend[::-1]))
+    return Y
+
+
+def fast_smooth(y, h, kernel=cubic_kernel, kinterval=(-1,1)):
+    """Uses convolution to smooth y, using a kernel of half-bandwidth h, where h is # of points.
+
+    Like kernel_smooth but assumes uniform interpoint distances so can
+    use numpy.convolve for fast results.
+    """
+    wts = kernel(np.linspace(kinterval[0], kinterval[1], 2*h + 1))
+    sumwts = np.sum(wts)
+    Y = reflect_ends(y, h)
+    smoothY = np.convolve(Y, wts/sumwts, mode='valid')
+    return smoothY
+
 
 def estimate_grid_parameters(bimg, threshold = 0.2, min_dist = 20):
-    rowsums = np.sum(bimg, axis=1)
+    h = int(min_dist * 0.5)
+    rowsums = fast_smooth(np.sum(bimg, axis=1), h)
     rowpks = peakutils.indexes(rowsums, thres = threshold, min_dist = min_dist)
     row_spacing = np.median(rowpks[1:] - rowpks[:-1])
 
-    colsums = np.sum(bimg, axis=0)
+    colsums = fast_smooth(np.sum(bimg, axis=0), h)
     colpks = peakutils.indexes(colsums, thres = threshold, min_dist = min_dist)
     col_spacing = np.median(colpks[1:] - colpks[:-1])
 
@@ -62,6 +89,8 @@ def estimate_grid_parameters(bimg, threshold = 0.2, min_dist = 20):
     radii = [region.equivalent_diameter/2.0 for region in regions]
     radius = np.median(radii)
     return row_spacing, col_spacing, radius
+
+
 
 
 def construct_grid_template(nrows, ncols, row_spacing, col_spacing, radius):
@@ -101,6 +130,7 @@ def compute_shift(x, y):
     zero_index = int(len(x) / 2) - 1
     shift = zero_index - (np.argmax(c) - 1)
     return shift     
+
 
 
 def estimate_grid_offset(bimg, template):
@@ -245,7 +275,8 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
     threshold_dict = {"otsu" : imgz.threshold_otsu,
                       "li" : imgz.threshold_li,
                       "triangle" : imgz.threshold_triangle,
-                      "mean" :  imgz.threshold_mean}
+                      "mean" :  imgz.threshold_mean.
+                      "yen" : imgz.threshold_yen}
     threshold_func = threshold_dict[threshold]
 
     for imgfile in imgfiles:
