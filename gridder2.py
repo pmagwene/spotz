@@ -275,7 +275,7 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
     threshold_dict = {"otsu" : imgz.threshold_otsu,
                       "li" : imgz.threshold_li,
                       "triangle" : imgz.threshold_triangle,
-                      "mean" :  imgz.threshold_mean.
+                      "mean" :  imgz.threshold_mean,
                       "yen" : imgz.threshold_yen}
     threshold_func = threshold_dict[threshold]
 

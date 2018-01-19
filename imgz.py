@@ -135,9 +135,12 @@ def disk_erosion(radius, img):
 
 
 @curry
-def imshowg(img):
+def imshowg(img, ax = None):
     vmin, vmax = util.dtype_limits(img, clip_negative = True)
-    ax = plt.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)
+    if ax is None:
+        ax = plt.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)
+    else:
+        ax.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)
     return ax
 
 
@@ -189,6 +192,18 @@ def image_center(r_hwidth, c_hwidth, img):
 def extract_bbox(bbox, img):
     minr, minc, maxr, maxc = bbox
     return img[minr:maxr, minc:maxc]
+
+def inscribed_bbox(bbox):
+    minr, minc, maxr, maxc = bbox
+    minor_axis = min(maxr-minr, maxc-minc)/2
+    center = (minr+maxr)/2, (minc+maxc)/2
+    radius = minor_axis * 0.70710678118654757
+    iminr = int(center[0] - radius)
+    imaxr = int(center[0] + radius)
+    iminc = int(center[1] - radius)
+    imaxc = int(center[1] + radius)
+    return (iminr, iminc, imaxr, imaxc)
+
     
 
 def pad_to_same_size(img1, img2, mode = "edge"):
