@@ -42,10 +42,14 @@ def colorize_grayscale(img, mask, clr=[1, 0, 0, 0.65]):
     return clrimg
 
 def draw_image_and_labels(img, labeled_img, mask_cmap = "Reds", alpha = 0.35, 
-                          fontsize=7, textcolor = "Tan"):
+                          fontsize=7, textcolor = "Tan", ax = None):
     regions = measure.regionprops(labeled_img)
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
     ax.imshow(img, cmap = "gray")
     ax.imshow(labeled_img > 0, cmap = mask_cmap, alpha = alpha)
     draw_region_labels(regions, ax, fontsize = fontsize, color = textcolor)
-    return fig, ax
+    if ax is None:
+        return fig, ax
+    else:
+        return ax

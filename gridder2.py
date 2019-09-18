@@ -33,8 +33,10 @@ def find_rotation_angle(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
     if ntheta is None:
         ntheta = (maxtheta - mintheta) * 4 + 1
     theta = np.linspace(mintheta, maxtheta, ntheta)
-    sinogram = transform.radon(transform.rescale(bimg, scale=scale, mode = "constant"), 
-                               theta, circle=False)
+    sinogram = transform.radon(
+                  transform.rescale(bimg, scale=scale, mode = "constant",
+                    multichannel=False, anti_aliasing=False), 
+                  theta, circle=False)
     sinogram_max = np.max(sinogram, axis=0)
     peak_indices = peakutils.indexes(sinogram_max, thres=0.999)
     interpolated_peaks = peakutils.interpolate(theta, sinogram_max, 

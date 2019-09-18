@@ -21,6 +21,12 @@ import imgz, spotzplot
 #-------------------------------------------------------------------------------    
     
 
+def extract_bbox(bbox, img, border=0):
+    nrows, ncols = img.shape
+    minr, minc, maxr, maxc = bbox
+    minr, minc = max(0, minr - border), max(0, minc - border)
+    maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)
+    return img[minr:maxr, minc:maxc]
 
 @curry
 def threshold_bboxes(bboxes, img, threshold_func = filters.threshold_li, 
@@ -35,11 +41,11 @@ def threshold_bboxes(bboxes, img, threshold_func = filters.threshold_li,
     thresh_img = np.zeros_like(img, dtype = np.bool)
     nrows, ncols = img.shape
     global_thresh = threshold_func(img)
-
+    
     for bbox in bboxes:
         minr, minc, maxr, maxc = bbox
         minr, minc = max(0, minr - border), max(0, minc - border)
-        maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)
+        maxr, maxc = min(maxr + border, nrows-1), min(maxc + border, ncols - 1)        
         local_thresh = threshold_func(img[minr:maxr, minc:maxc])
         thresh = max(local_thresh, global_thresh * min_local_threshold)
         local_img = img[minr:maxr, minc:maxc] > thresh

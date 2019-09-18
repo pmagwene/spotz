@@ -216,11 +216,11 @@ def pad_to_same_size(img1, img2, mode = "edge"):
     rdiff1, rdiff2 = rmax - r1, rmax - r2
     cdiff1, cdiff2 = cmax - c1, cmax - c2
     
-    rpad1 = rdiff1/2, rdiff1 - rdiff1/2
-    rpad2 = rdiff2/2, rdiff2 - rdiff2/2
+    rpad1 = int(rdiff1/2), int(rdiff1 - rdiff1/2)
+    rpad2 = int(rdiff2/2), int(rdiff2 - rdiff2/2)
     
-    cpad1 = cdiff1/2, cdiff1 - cdiff1/2
-    cpad2 = cdiff2/2, cdiff2 - cdiff2/2    
+    cpad1 = int(cdiff1/2), int(cdiff1 - cdiff1/2)
+    cpad2 = int(cdiff2/2), int(cdiff2 - cdiff2/2)
         
     pimg1 = util.pad(img1, (rpad1, cpad1), mode = mode)
     pimg2 = util.pad(img2, (rpad2, cpad2), mode = mode)    
