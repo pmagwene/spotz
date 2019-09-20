@@ -171,7 +171,15 @@ def save_sparse_mask(labeled_img, fname):
               help = "Thresholding function to use",
               type=click.Choice(['otsu', 'li', "triangle", "mean", "yen"]),
               default = "li")
-@click.option('--localthresh',
+@click.option("--globalthresh",
+              help = "Use global rather than local thresholding",
+              default = True,
+              show_default = True)
+@click.option("--userthresh",
+              help = "User specified global threshold value. Used for thresholding when value > 0.",
+              type = int,
+              default = 0)
+@click.option("--localthresh",
               help = "Minimum ratio of local threshold to global threshold.",
               type = float,
               default = 0.5)
@@ -213,7 +221,8 @@ def save_sparse_mask(labeled_img, fname):
 
 def main(imgfiles, gridfile, outdir, prefix,
          opensize = 3, closesize = 3, minhole = 25, minobject = 25, 
-         border=10, maxdist=30, seedwidth=5, threshold="li", localthresh = 0.5,
+         border=10, maxdist=30, seedwidth=5, globalthresh=False, userthresh=0,
+         threshold="li", localthresh = 0.5,
          invert = True, autoexpose = False, display = False, 
          saveimage = False, withgrid = False):
     """Segment microbial colonies in an image of a pinned plate.
@@ -223,11 +232,16 @@ def main(imgfiles, gridfile, outdir, prefix,
     segmentation mask to.
     
     Segmentation involves:
+
     - Inversion (required if dark colonies on light) and auto exposure (optional)
-    - Thresholding based on grid
+    
+    - Thresholding based on grid (unless globalthresh or userthresh specified)
+    
     - Filtering of small objects and holes
+    
     - Morphological closing
-    - Watershed dtermination of objects within grid
+    
+    - Watershed determination of objects within grid
     """
     threshold_dict = {"otsu" : filters.threshold_otsu,
                       "li" : filters.threshold_li,
@@ -252,9 +266,15 @@ def main(imgfiles, gridfile, outdir, prefix,
       
 
         # threshold
-        thresh_img = pipe(iimg,
-                        threshold_bboxes(grid_bboxes, threshold_func = threshold_func, 
-                                        min_local_threshold = localthresh, border = border),
+        if userthresh > 0:
+            thresh_img = iimg > userthresh
+        elif globalthresh:
+            thresh_img = iimg > threshold_func(iimg)
+        else:
+            thresh_img = threshold_bboxes(grid_bboxes, iimg, threshold_func = threshold_func, 
+                                        min_local_threshold = localthresh, border = border)
+
+        thresh_img = pipe(thresh_img,
                         imgz.remove_small_objects(minobject),
                         imgz.remove_small_holes(minhole),
                         imgz.disk_closing(closesize),

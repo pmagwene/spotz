@@ -136,6 +136,8 @@ def disk_erosion(radius, img):
 
 @curry
 def imshowg(img, ax = None):
+    """Show image using grayscale color map.
+    """
     vmin, vmax = util.dtype_limits(img, clip_negative = True)
     if ax is None:
         ax = plt.imshow(img, cmap = "gray", vmin = vmin, vmax = vmax)

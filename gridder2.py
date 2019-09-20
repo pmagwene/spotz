@@ -51,7 +51,7 @@ def fix_rotation(bimg):
 
 
 def cubic_kernel(x):
-    """Cubic kernel."""
+    """Cubic kernel.""" 
     z = (1.0 - np.abs(x)**3)
     z[np.abs(x) >= 1] = 0
     return z  
@@ -150,6 +150,7 @@ def estimate_grid_offset(bimg, template):
 
     return offset1, offset2, (row_shift, col_shift)
 
+
 def estimate_grid_ctrs(bimg, template, template_centers):
     ctrs = np.array(template_centers)
     offset1, offset2, shifts = estimate_grid_offset(bimg, template)
@@ -210,7 +211,12 @@ def find_grid(nrows, ncols, bimg, pkthresh = 0.1, pkdist = None):
 @click.option('--threshold',
               help = "Thresholding function to use",
               type=click.Choice(['otsu', 'li', "triangle", "mean"]),
-              default = "otsu")
+              default = "otsu",
+              show_default = True)
+@click.option("--userthresh",
+              help = "User specified global threshold value. Used for thresholding when value > 0.",
+              type = int,
+              default = 0)
 @click.option("--opensize",
               help = "Size of element for morphological opening.",
               type = int,
@@ -254,24 +260,20 @@ def find_grid(nrows, ncols, bimg, pkthresh = 0.1, pkdist = None):
                 type = click.Path(exists = True, file_okay = False,
                                   dir_okay = True))
 def main(imgfiles, outdir, rows, cols, prefix = "grid",
-         threshold = "otsu", opensize = 3, pkthresh = 0.1, pkdist = None,
+         threshold = "otsu", userthresh=0,
+         opensize = 3, pkthresh = 0.1, pkdist = None,
          display = False, invert = False, autoexpose = False, rotate = True):
     """Infer the coordinates of a gridded set of objects in an image.
     
     Grid finding involves three key steps: 
 
-      1. Image thresholding to define foreground vs background and
-      generate a binary image
+      1. Image thresholding to define foreground vs background and generate a binary image
 
       2. Morphological opening of the binary image
 
-      3. Inference of the grid coordinates from foreground objects in
-      the binary image.
+      3. Inference of the grid coordinates from foreground objects in the binary image.
     
-    User can optionally choose to invert and apply exposure equalization to
-    the input image. Inversion is required when the objects of
-    interest are dark objects on a light background (e.g. transparency
-    scanning).
+    User can optionally choose to invert and apply exposure equalization to the input image. Inversion is required when the objects of interest are dark objects on a light background (e.g. transparency scanning).
     """
 
     threshold_dict = {"otsu" : imgz.threshold_otsu,
@@ -294,8 +296,11 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
 
 
         # initial thresholding and rotation correction
-        rbimg = pipe(iimg, 
-                  threshold_func,
+        if userthresh > 0:
+            rbimg = iimg > userthresh
+        else:
+            rbimg = pipe(iimg, threshold_func)
+        rbimg = pipe(rbimg,
                   imgz.disk_opening(opensize), 
                   imgz.clear_border)
 
