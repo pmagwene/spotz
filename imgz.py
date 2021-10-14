@@ -80,7 +80,7 @@ closing = morphology.closing
 erosion = morphology.erosion
 dilation = morphology.dilation
 thin = morphology.thin
-watershed = morphology.watershed
+watershed = segmentation.watershed
 
 
 @curry
@@ -224,8 +224,8 @@ def pad_to_same_size(img1, img2, mode = "edge"):
     cpad1 = int(cdiff1/2), int(cdiff1 - cdiff1/2)
     cpad2 = int(cdiff2/2), int(cdiff2 - cdiff2/2)
         
-    pimg1 = util.pad(img1, (rpad1, cpad1), mode = mode)
-    pimg2 = util.pad(img2, (rpad2, cpad2), mode = mode)    
+    pimg1 = np.pad(img1, (rpad1, cpad1), mode = mode)
+    pimg2 = np.pad(img2, (rpad2, cpad2), mode = mode)    
 
     offset1 = (rpad1[0], cpad1[0])
     offset2 = (rpad2[0], cpad2[0])

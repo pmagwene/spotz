@@ -79,7 +79,7 @@ def watershed_segment_bbox(bbox_edges, bbox_seed, include_boundary = True):
     bbox_seed[1, ncols - 2] = n + 2
     bbox_seed[nrows - 2, ncols - 2] = n + 3
     bbox_seed[nrows - 2, 1] = n + 4 
-    wshed = morphology.watershed(bbox_edges, bbox_seed)
+    wshed = segmentation.watershed(bbox_edges, bbox_seed)
     wshed[wshed != n] = 0
     if include_boundary:
         boundary = segmentation.find_boundaries(wshed, mode = "outer") * n
