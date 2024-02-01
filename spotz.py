@@ -4,9 +4,7 @@ import click
 import drawROI
 import equalizer
 import extractROI
-import gridder
 import gridder2
-import segmenter
 import segmenter2
 import spotstats
 import showmask

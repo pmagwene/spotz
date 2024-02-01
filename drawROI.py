@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import json
 
 import numpy as np
@@ -230,7 +230,7 @@ def main(imgfile, outfile, rows, cols, normalized):
     
     Bounding boxes are (minrow, mincol, maxrow, maxcol) to be
     consistent with skimage. Returned bounding boxes are returned in
-    YAML format for easy parsing. See extractROI for a program that
+    JSON format for easy parsing. See extractROI for a program that
     operates on ROIs.
 
     """
