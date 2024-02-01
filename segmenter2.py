@@ -38,7 +38,7 @@ def threshold_bboxes(bboxes, img, threshold_func = filters.threshold_li,
     border -- gives buffer region around bbox to include for each bbox, allowing bboxes to be
     increased/decreased in size a uniform amount.
     """
-    thresh_img = np.zeros_like(img, dtype = np.bool)
+    thresh_img = np.zeros_like(img, dtype = bool)
     nrows, ncols = img.shape
     global_thresh = threshold_func(img)
     

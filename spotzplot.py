@@ -21,14 +21,13 @@ def draw_bboxes(bboxes, ax=None, color='red', linewidth=1, **kw):
     boxcoll.set_facecolor('none')
     boxcoll.set_edgecolor(color)
     boxcoll.set_linewidth(linewidth)
-    ax.collections = []
+    #ax.collections = []
     ax.add_collection(boxcoll)
     return ax
 
 def draw_region_labels(regions, ax=None, fontsize=7, **kw):
     if ax is None:
         ax = plt.gca()
-    ax.artists = []
     for region in regions:
         cent = region.centroid
         t = Text(cent[1], cent[0], str(region.label), fontsize=fontsize, **kw)

@@ -30,7 +30,7 @@ def threshold_bboxes(bboxes, img, threshold_func = imgz.threshold_li, border=10)
     border -- gives buffer region around bbox to include for each bbox, allowing bboxes to be
     increased/decreased in size a uniform amount.
     """
-    thresh_img = np.zeros_like(img, dtype = np.bool)
+    thresh_img = np.zeros_like(img, dtype = bool)
     nrows, ncols = img.shape
     for bbox in bboxes:
         minr, minc, maxr, maxc = bbox
@@ -135,7 +135,7 @@ def filter_objects_by_grid(grid_data, binary_img):
 
     # remove any pixels not within the grid boundaries
     #
-    in_grid = np.zeros_like(binary_img, dtype = np.bool)
+    in_grid = np.zeros_like(binary_img, dtype = bool)
     minr, minc, maxr, maxc = grid_data["total_bbox"]
     in_grid[minr:maxr, minc:maxc] = True
     binary_img = np.where(in_grid, binary_img, np.zeros_like(binary_img))
@@ -228,7 +228,7 @@ def binarize_image(img, blank_bbox, threshold = "otsu", threshold_perc = 99.9,
         img = imgz.equalize_adaptive(img)
 
     if opening is not None:
-        img = morphology.opening(img, selem = morphology.disk(opening))        
+        img = morphology.opening(img, footprint= morphology.disk(opening))        
 
     threshold_dict = {"otsu":filters.threshold_otsu,
                       "li":filters.threshold_li,

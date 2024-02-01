@@ -123,15 +123,15 @@ def remove_small_holes(min_size, img, **args):
 
 @curry
 def disk_opening(radius, img):
-    return morphology.binary_opening(img, selem = morphology.disk(radius))
+    return morphology.binary_opening(img, footprint= morphology.disk(radius))
 
 @curry
 def disk_closing(radius, img):
-    return morphology.binary_closing(img, selem = morphology.disk(radius))
+    return morphology.binary_closing(img, footprint= morphology.disk(radius))
 
 @curry
 def disk_erosion(radius, img):
-    return morphology.binary_erosion(img, selem = morphology.disk(radius))
+    return morphology.binary_erosion(img, footprint= morphology.disk(radius))
 
 
 @curry
@@ -175,7 +175,7 @@ def mask_border(size, img, background = 0):
 @curry
 def bbox_mask(bbox, img):
     minr, minc, maxr, maxc = bbox
-    mask_img = np.zeros_like(img, dtype = np.bool)
+    mask_img = np.zeros_like(img, dtype = bool)
     mask_img[minr:maxr, minc:maxc] = True
     return mask_img
 

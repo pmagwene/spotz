@@ -84,7 +84,7 @@ def estimate_grid_centers(centroids, min_gap, min_n):
     row_centers = interval_means(row_vals, valid_rows)
     col_centers = interval_means(col_vals, valid_cols)
 
-    return np.round(row_centers).astype(np.int), np.round(col_centers).astype(np.int)
+    return np.round(row_centers).astype(int), np.round(col_centers).astype(int)
 
 def grid_centers_from_outermost(row_centers, col_centers, nrows, ncols):
     row_spacing = median_center_spacing(row_centers)
@@ -94,7 +94,7 @@ def grid_centers_from_outermost(row_centers, col_centers, nrows, ncols):
     row_centers = top + (np.arange(nrows) * row_spacing)
     left = col_centers[0]
     col_centers = left + (np.arange(ncols) * col_spacing)
-    return np.round(row_centers).astype(np.int), np.round(col_centers).astype(np.int)
+    return np.round(row_centers).astype(int), np.round(col_centers).astype(int)
 
 
 def make_grid_from_dims(row_dim, col_dim, nrows, ncols, row_offset = 0, col_offset = 0):
@@ -137,8 +137,8 @@ def grid_bboxes_from_centers(row_centers, col_centers, shape):
                                   col_centers[:-1] + col_dists,
                                   colLast))
 
-    row_borders = np.round(row_borders).astype(np.int)
-    col_borders = np.round(col_borders).astype(np.int)
+    row_borders = np.round(row_borders).astype(int)
+    col_borders = np.round(col_borders).astype(int)
 
     row_pairs = zip(row_borders[:-1], row_borders[1:])
     col_pairs = zip(col_borders[:-1], col_borders[1:])
@@ -183,7 +183,7 @@ def find_grid(binary_img, nrows, ncols,
 def threshold_grid_units(grid_data, img, threshold_func = imgz.threshold_otsu):
     """Threshold each grid unit independently.
     """
-    timg = np.zeros_like(img, dtype = np.bool)
+    timg = np.zeros_like(img, dtype = bool)
 
     #  threshold each grid unit independently
     for i, ctr in enumerate(grid_data["centers"]):
@@ -313,7 +313,7 @@ def compute_shift(x, y):
 
 
 def estimate_grid_offset(bimg, template):
-    btemplate = template.astype(np.bool)
+    btemplate = template.astype(bool)
     pbimg, ptemplate, offset1, offset2 = pad_to_same_size(bimg, btemplate)
 
     i_rowsums = np.sum(pbimg, axis=0)

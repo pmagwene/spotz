@@ -9,7 +9,6 @@ import scipy
 from scipy import stats, signal
 
 import matplotlib
-matplotlib.use('qt5agg')
 import matplotlib.pyplot as plt
 
 import skimage
@@ -35,7 +34,7 @@ def find_rotation_angle(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
     theta = np.linspace(mintheta, maxtheta, ntheta)
     sinogram = transform.radon(
                   transform.rescale(bimg, scale=scale, mode = "constant",
-                    multichannel=False, anti_aliasing=False), 
+                    channel_axis=False, anti_aliasing=False), 
                   theta, circle=False)
     sinogram_max = np.max(sinogram, axis=0)
     peak_indices = peakutils.indexes(sinogram_max, thres=0.999)
@@ -47,7 +46,7 @@ def find_rotation_angle(bimg, theta_range = (-10, 10), ntheta=None, scale=0.1):
 def fix_rotation(bimg):
     sinogram, angle = find_rotation_angle(bimg)
     return transform.rotate(bimg, -angle, resize = False, 
-              preserve_range = True, mode = "constant").astype(np.bool)
+              preserve_range = True, mode = "constant").astype(bool)
 
 
 def cubic_kernel(x):
@@ -103,8 +102,8 @@ def construct_grid_template(nrows, ncols, row_spacing, col_spacing, radius):
     row_centers = row_spacing * np.arange(1, nrows+1) - row_spacing/2.0
     col_centers = col_spacing * np.arange(1, ncols+1) - col_spacing/2.0
     
-    row_centers = row_centers.astype(np.int)
-    col_centers = col_centers.astype(np.int)
+    row_centers = row_centers.astype(int)
+    col_centers = col_centers.astype(int)
 
     radius = int(radius)
 
@@ -136,7 +135,7 @@ def compute_shift(x, y):
 
 
 def estimate_grid_offset(bimg, template):
-    btemplate = template.astype(np.bool)
+    btemplate = template.astype(bool)
     pbimg, ptemplate, offset1, offset2 = imgz.pad_to_same_size(bimg, btemplate)
 
     i_rowsums = np.sum(pbimg, axis=1)
@@ -343,6 +342,8 @@ def main(imgfiles, outdir, rows, cols, prefix = "grid",
     
 
 if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use('qt5agg')
     main()
 
 
