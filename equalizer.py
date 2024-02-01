@@ -44,7 +44,7 @@ def main(roifile, imgfiles, outdir, prefix):
     """
 
     roi_dict = load_ROI_dict(roifile)
-    roi_bbox = roi_dict.values()[0]
+    roi_bbox = list(roi_dict.values())[0]
 
     for imgfile in imgfiles:
         img = np.squeeze(io.imread(imgfile))
@@ -52,7 +52,7 @@ def main(roifile, imgfiles, outdir, prefix):
 
         root = os.path.basename(imgfile)
         outfile = os.path.join(outdir, "{}-{}".format(prefix, root))
-        TIFF.imsave(outfile, img)
+        TIFF.imwrite(outfile, img)
     
 
 if __name__ == "__main__":

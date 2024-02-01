@@ -100,3 +100,16 @@ ENV/
 # mypy
 .mypy_cache/
 .DS_Store
+eql.roi
+out.roi
+test-384.tif
+test2-384.tif
+outs/EQLZD-plate-image-01.tif
+outs/GRID-Region001-EQLZD-plate-image-01.json
+outs/GRID-Region004-EQLZD-plate-image-01.json
+outs/MASK-Region004-EQLZD-plate-image-01.npz
+outs/Region004-EQLZD-plate-image-01.tif
+outs/Region001/Region001-EQLZD-plate-image-01.tif
+outs/Region002/Region002-EQLZD-plate-image-01.tif
+outs/Region003/Region003-EQLZD-plate-image-01.tif
+outs/Region004/Region004-EQLZD-plate-image-01.tif

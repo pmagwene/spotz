@@ -15,11 +15,6 @@ from skimage import (morphology, segmentation, exposure, feature, filters,
 from toolz.curried import *
 
 
-class PersistentRectangleSelector(RectangleSelector):
-    def release(self, event):
-        super(PersistentRectangleSelector, self).release(event)
-        self.to_draw.set_visible(True)
-        self.canvas.draw()   
 
 
 class SelectorContainer(object):
@@ -39,13 +34,12 @@ def select_ROI(img, cmap='gray'):
     plt.subplots_adjust(bottom = 0.2)  
     ax.imshow(img, cmap=cmap)
 
-    selector = PersistentRectangleSelector(ax,
-                                           lambda e1,e2: None,
-                                           drawtype = "box",
-                                           useblit = False,
-                                           button = [1],
-                                           spancoords = "data",
-                                           interactive = True)
+    selector = RectangleSelector(ax,
+                                lambda e1,e2: None,
+                                useblit = False,
+                                button = [1],
+                                spancoords = "data",
+                                interactive = True)
 
     ax_done = plt.axes([0.45, 0.05, 0.2, 0.075])
     btn_done = Button(ax_done, "Done")

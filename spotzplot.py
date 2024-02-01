@@ -1,7 +1,6 @@
 import numpy as np
 
 import matplotlib
-matplotlib.use('qt5agg')
 import matplotlib.pyplot as plt
 from matplotlib.text import Text
 import matplotlib.patches as mpatches

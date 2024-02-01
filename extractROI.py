@@ -51,10 +51,10 @@ def main(roifile, imgfiles, outdir):
     for imgfile in imgfiles:
         img = np.squeeze(io.imread(imgfile))
         root = os.path.basename(imgfile)
-        for (name, bbox) in roidict.iteritems():
+        for (name, bbox) in roidict.items():
             subimg = extract_region(img, *bbox)
             outfile = os.path.join(outdir, name, "{}-{}".format(name, root))
-            TIFF.imsave(outfile, subimg)
+            TIFF.imwrite(outfile, subimg)
         
 
 if __name__ == "__main__":

@@ -4,12 +4,12 @@ import json
 import numpy as np
 
 import matplotlib
-matplotlib.use('qt5agg')
 from matplotlib.widgets import RectangleSelector, Button
 from matplotlib import patches
 import matplotlib.pyplot as plt
 
 from skimage import (transform, io, util)
+import imgz
 
 import click
 import json
@@ -42,12 +42,12 @@ def subdivide_region(shape_or_bbox, nrows=2, ncols=2):
     bboxes = bboxes_from_boundaries(rows, cols)
     return bboxes
 
-
-class PersistentRectangleSelector(RectangleSelector):
-    def release(self, event):
-        super(PersistentRectangleSelector, self).release(event)
-        self.to_draw.set_visible(True)
-        self.canvas.draw()
+# no longer need
+# class PersistentRectangleSelector(RectangleSelector):
+#     def release(self, event):
+#         super(PersistentRectangleSelector, self).release(event)
+#         self.to_draw.set_visible(True)
+#         self.canvas.draw()
 
 
 class SelectorCollection(object):
@@ -108,15 +108,14 @@ class SelectorCollection(object):
 
     def _update_selector(self, i, interactive):
         xmin, xmax, ymin, ymax = self.selectors[i].extents
-        newselector = PersistentRectangleSelector(
+        newselector = RectangleSelector(
             self.selectors[i].ax, 
-            self.select_callback,
-            drawtype='box', 
+            self.select_callback, 
             useblit=False,
             button=[1],
             minspanx=5, minspany=5,
             spancoords='data',
-            rectprops = dict(facecolor=self.colors[i], 
+            props = dict(facecolor=self.colors[i], 
                              alpha=0.5),
             interactive = interactive)
         newselector.extents = (xmin, xmax, ymin, ymax)
@@ -189,13 +188,13 @@ def visualizeROI(roidict, img, cmap = "gray", alpha = 0.35, **args):
 
 @click.command()
 @click.argument("imgfile",
-                type = click.File("r"))
+                type = click.Path(exists=True))
 @click.argument("roifile",
                 type = click.File("r"))
 def showROI(imgfile, roifile):
     """Draw regions of interest defined in a ROI file (json format).
     """
-    img = np.squeeze(io.imread(imgfile))
+    img = np.squeeze(imgz.read_image(imgfile))
     roidict = json.load(roifile)
     fig, ax = visualizeROI(roidict, img)
     plt.show()
@@ -250,15 +249,14 @@ def main(imgfile, outfile, rows, cols, normalized):
     selections.normalized = normalized
     selections.colors = plt.cm.tab10(np.linspace(0, 1, nplates)) 
     selections.selectors = \
-        [PersistentRectangleSelector(
+        [RectangleSelector(
             main_ax, 
-            selections.select_callback,
-            drawtype='box', 
+            selections.select_callback, 
             useblit=False,
             button=[1],
             minspanx=5, minspany=5,
             spancoords='data',
-            rectprops = dict(facecolor=selections.colors[i],alpha=0.5),
+            props = dict(facecolor=selections.colors[i],alpha=0.5),
             interactive=True) 
          for i in range(nplates)]
 
@@ -288,4 +286,6 @@ def main(imgfile, outfile, rows, cols, normalized):
 
 
 if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use('qt5agg')
     main()

@@ -6,7 +6,6 @@ import numpy as np
 import scipy as sp
 
 import matplotlib
-matplotlib.use('qt5agg')
 import matplotlib.pyplot as plt
 
 import skimage
@@ -314,6 +313,8 @@ def main(imgfiles, gridfile, outdir, prefix,
             plt.show()
 
 if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use('qt5agg')
     main()
 
 
