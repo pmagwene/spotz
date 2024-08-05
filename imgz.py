@@ -61,20 +61,31 @@ def equalize_from_ROI(img, roi):
 
 read_image = io.imread
 invert = util.invert
-equalize_adaptive = exposure.equalize_adapthist
-equalize_hist = exposure.equalize_hist
-clear_border = segmentation.clear_border
-disk = disk_selem = morphology.disk
-binary_opening = morphology.binary_opening
-binary_closing = morphology.binary_closing
-binary_erosion = morphology.binary_erosion
-binary_dilation = morphology.binary_dilation
-opening = morphology.opening
-closing = morphology.closing
-erosion = morphology.erosion
-dilation = morphology.dilation
-thin = morphology.thin
-watershed = segmentation.watershed
+equalize_adaptive = curry(exposure.equalize_adapthist)
+equalize_hist = curry(exposure.equalize_hist)
+clear_border = curry(segmentation.clear_border)
+disk = disk_selem = curry(morphology.disk)
+binary_opening = curry(morphology.binary_opening)
+binary_closing = curry(morphology.binary_closing)
+binary_erosion = curry(morphology.binary_erosion)
+binary_dilation = curry(morphology.binary_dilation)
+opening = curry(morphology.opening)
+closing = curry(morphology.closing)
+erosion = curry(morphology.erosion)
+dilation = curry(morphology.dilation)
+thin = curry(morphology.thin)
+watershed = curry(segmentation.watershed)
+
+
+# @curry
+# def equalize_hist(nbins, img, mask=None):
+#     return exposure.equalize_hist(img, nbins=nbins, mask=mask)
+
+# @curry
+# def equalize_adaptive(kernel_size, clip_limit, nbins, img):
+#     return exposure.equalize_adapthist(img, kernel_size=kernel_size, 
+#                                        clip_limit=clip_limit, 
+#                                        nbins=nbins)
 
 
 @curry
@@ -100,6 +111,12 @@ def threshold_yen(img):
 
 def threshold_isodata(img):
     return img > filters.threshold_isodata(img)
+
+def threshold_niblack(img):
+    return img > filters.threshold_niblack(img)
+
+def threshold_sauvola(img):
+    return img > filters.threshold_sauvola(img)
 
 @curry
 def threshold_gaussian(block_size, sigma, img):

@@ -35,7 +35,7 @@ def draw_region_labels(regions, ax=None, fontsize=7, **kw):
     return ax
 
 def colorize_grayscale(img, mask, clr=[1, 0, 0, 0.65]):
-    clrimg = color.gray2rgb(util.img_as_float(img), alpha=True)
+    clrimg = color.gray2rgba(util.img_as_float(img), alpha=0.65)
     clrimg[mask, :] *= clr
     return clrimg
 

@@ -113,3 +113,13 @@ outs/Region001/Region001-EQLZD-plate-image-01.tif
 outs/Region002/Region002-EQLZD-plate-image-01.tif
 outs/Region003/Region003-EQLZD-plate-image-01.tif
 outs/Region004/Region004-EQLZD-plate-image-01.tif
+
+
+# local
+test/
+output_*/
+test_cells.tiff
+Untitled.ipynb
+tt.png
+threshholded.png
+img.py
